@@ -1,0 +1,83 @@
+{
+	"name": "electron-vuevite-quick-start",
+	"productName": "Electron VueVite - Quick Start",
+	"version": "0.3.1",
+	"description": "Your awesome app description",
+	"main": "build/electron/main.js",
+	"author": {
+		"name": "Heliomar P. Marques",
+		"email": "heliomarpm@proton.me",
+		"url": "https://navto.me/heliomarpm"
+	},
+	"private": true,
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/heliomarpm/electron-vuevite-quick-start.git"
+	},
+	"bugs": {
+		"url": "https://github.com/heliomarpm/electron-vuevite-quick-start/issues"
+	},
+	"homepage": "https://github.com/heliomarpm/electron-vuevite-quick-start#readme",
+	"keywords": [
+		"electron",
+		"electron-quick-start",
+		"electron-app",
+		"electron-vue",
+		"electron-vite",
+		"electron-builder",
+		"vuejs",
+		"vue3",
+		"vitejs"
+	],
+	"scripts": {
+		"start": "yarn dev:all",
+		"dev": "vite --mode electron",
+		"dev:web": "vite --mode development",
+		"dev:electron": "vite --mode electron",
+		"dev:all": "concurrently \"yarn dev:web\" \"yarn dev:electron\"",
+		"dev:test": "vite --mode test",
+		"build": "vue-tsc && vite build --mode electron.production && electron-builder",
+		"build:web": "vue-tsc && vite build --mode production",
+		"build:test": "vue-tsc && vite build --mode test",
+		"preview": "vite preview",
+		"deploy": "node ./node_modules/gh_deploy/index.mjs"
+	},
+	"dependencies": {
+		"axios": "^1.7.9",
+		"class-variance-authority": "^0.7.1",
+		"clsx": "^2.1.1",
+		"lucide-vue-next": "^0.475.0",
+		"radix-vue": "^1.9.15",
+		"tailwind-merge": "^3.0.1",
+		"tailwindcss-animate": "^1.0.7",
+		"vue": "^3.5.10"
+	},
+	"devDependencies": {
+		"@types/crypto-js": "^4.2.2",
+		"@types/electron": "^1.6.12",
+		"@types/node": "^22.13.4",
+		"@vitejs/plugin-vue": "^5.1.4",
+		"autoprefixer": "^10.4.20",
+		"concurrently": "^9.1.2",
+		"crypto-js": "^4.2.0",
+		"electron": "^32.1.2",
+		"electron-builder": "^25.0.5",
+		"electron-devtools-installer": "^3.2.0",
+		"gh_deploy": "github:heliomarpm/gh_deploy",
+		"mitt": "^3.0.1",
+		"open": "^10.1.0",
+		"pinia": "^3.0.1",
+		"postcss": "^8.5.2",
+		"semver": "^7.6.3",
+		"socket.io-client": "^4.8.1",
+		"tailwindcss": "3.4.17",
+		"typescript": "^5.6.2",
+		"vite": "^5.4.8",
+		"vite-plugin-electron": "^0.28.8",
+		"vite-plugin-electron-renderer": "^0.14.6",
+		"vue-router": "^4.5.0",
+		"vue-tsc": "^2.1.6"
+	},
+	"packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+}
