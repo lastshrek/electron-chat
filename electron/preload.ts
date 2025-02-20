@@ -120,6 +120,10 @@ const api = {
 	on: (channel: string, callback: Function) => {
 		ipcRenderer.on(channel, (_, data) => callback(data));
 	},
+	db: {
+		createUser: (params: any) => ipcRenderer.invoke("db:createUser", params),
+		getUserById: (id: number) => ipcRenderer.invoke("db:getUserById", id),
+	},
 };
 
 // 使用 try-catch 包装 contextBridge

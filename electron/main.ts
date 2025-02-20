@@ -1,8 +1,11 @@
-import {app, BrowserWindow, shell, screen, session} from "electron";
+import {app, BrowserWindow, shell, screen, session, ipcMain} from "electron";
 import {join} from "path";
 import {productName, description, version} from "../package.json";
 
 import installExtension, {VUEJS_DEVTOOLS} from "electron-devtools-installer";
+import Database from "better-sqlite3";
+import path from "path";
+import {initSchema} from "../src/db/schema";
 
 /**
  * ** The built directory structure
@@ -20,6 +23,60 @@ process.env.PUBLIC = process.env.VITE_DEV_SERVER_URL
 	: process.env.BUILD_APP;
 
 let mainWindow: BrowserWindow | null = null;
+
+// 全局数据库实例
+let db: Database.Database | null = null;
+
+// 初始化数据库
+const initDatabase = () => {
+	try {
+		const appDataPath = app.getPath("userData");
+		const dbPath = path.join(appDataPath, "chat.db");
+
+		db = new Database(dbPath, {
+			verbose: process.env.NODE_ENV === "development" ? console.log : undefined,
+		});
+
+		initSchema(db);
+		console.log("数据库初始化成功");
+		return true;
+	} catch (error) {
+		console.error("数据库初始化失败:", error);
+		return false;
+	}
+};
+
+// 设置 IPC 处理器
+const setupIPCHandlers = () => {
+	// 创建用户
+	ipcMain.handle("db:createUser", async (event, params) => {
+		try {
+			const stmt = db!.prepare(`
+				INSERT INTO users (username, email, password_hash, avatar)
+				VALUES (@username, @email, @passwordHash, @avatar)
+				RETURNING id, username, avatar, created_at as createdAt, updated_at as updatedAt
+			`);
+			return stmt.get(params);
+		} catch (error) {
+			console.error("创建用户失败:", error);
+			throw error;
+		}
+	});
+
+	// 获取用户信息
+	ipcMain.handle("db:getUserById", async (event, id) => {
+		try {
+			const stmt = db!.prepare(`
+				SELECT id, username, avatar, created_at as createdAt, updated_at as updatedAt
+				FROM users WHERE id = ?
+			`);
+			return stmt.get(id);
+		} catch (error) {
+			console.error("获取用户失败:", error);
+			throw error;
+		}
+	});
+};
 
 function createWindow() {
 	const screenSize = screen.getPrimaryDisplay().workAreaSize;
@@ -87,6 +144,12 @@ app.whenReady().then(async () => {
 			console.error("Vue Devtools failed to install:", e.toString());
 		}
 	}
+
+	// 初始化数据库
+	initDatabase();
+
+	// 设置 IPC 处理器
+	setupIPCHandlers();
 
 	createWindow();
 

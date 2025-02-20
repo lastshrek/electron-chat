@@ -6,6 +6,7 @@ import {rmSync} from "node:fs";
 import autoprefixer from "autoprefixer";
 import tailwind from "tailwindcss";
 import {fileURLToPath, URL} from "node:url";
+import {resolve} from "path";
 
 export default defineConfig(({command, mode}) => {
 	// 加载环境变量
@@ -33,7 +34,7 @@ export default defineConfig(({command, mode}) => {
 	const baseConfig = {
 		resolve: {
 			alias: {
-				"@": fileURLToPath(new URL("./src", import.meta.url)),
+				"@": resolve(__dirname, "src"),
 			},
 		},
 		css: {
@@ -44,9 +45,15 @@ export default defineConfig(({command, mode}) => {
 		build: {
 			outDir: isWeb ? "dist" : "build/app",
 			emptyOutDir: true,
+			rollupOptions: {
+				external: ["better-sqlite3"], // 将 better-sqlite3 标记为外部模块
+			},
 		},
 		plugins: [vue()],
 		clearScreen: true,
+		optimizeDeps: {
+			exclude: ["better-sqlite3"], // 排除 better-sqlite3 的依赖优化
+		},
 	};
 
 	// Web 模式配置
@@ -75,16 +82,16 @@ export default defineConfig(({command, mode}) => {
 					{
 						entry: "electron/main.ts",
 						onstart(options) {
-							process.env.VSCODE_DEBUG
-								? console.log("[startup] Electron App")
-								: options.startup();
+							options.reload();
 						},
 						vite: {
 							build: {
 								sourcemap,
 								minify: isBuild,
 								outDir: "build/electron",
-								rollupOptions: {},
+								rollupOptions: {
+									external: ["better-sqlite3", "electron"],
+								},
 							},
 						},
 					},
@@ -103,7 +110,9 @@ export default defineConfig(({command, mode}) => {
 						},
 					},
 				]),
-				renderer(),
+				renderer({
+					nodeIntegration: true,
+				}),
 			],
 			build: {
 				rollupOptions: {

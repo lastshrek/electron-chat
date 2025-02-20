@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:41:38
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-19 19:41:40
+ * @LastEditTime : 2025-02-20 18:46:40
  * @FilePath     : /src/utils/eventBus.ts
  * @Description  : eventBus
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -38,6 +38,7 @@ type Events = {
 		timestamp: string;
 	};
 	"clear-friend-request-count": void;
+	"unread-count-updated": number;
 };
 
 export const eventBus = mitt<Events>();
