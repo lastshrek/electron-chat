@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:12:22
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-20 19:05:31
+ * @LastEditTime : 2025-02-20 21:49:06
  * @FilePath     : /src/stores/user.ts
  * @Description  : user store
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -11,12 +11,11 @@
 import {defineStore} from "pinia";
 import {ref} from "vue";
 import {authApi} from "@/api/auth";
-import type {UserInfo, LoginResult} from "@/types/api";
+import type {UserInfo, LoginParams, LoginResponse} from "@/types/api";
 import {useChatStore} from "./chat";
 import {useMessageStore} from "./message";
 import {wsService} from "@/services/ws";
 import {useRouter} from "vue-router";
-import {UserDAL} from "@/db/users";
 
 const TOKEN_KEY = "token";
 const USER_INFO_KEY = "user_info";
@@ -48,10 +47,34 @@ export const useUserStore = defineStore("user", () => {
 		}
 	};
 
+	const syncFriends = async () => {
+		try {
+			const response = await authApi.getFriends();
+			if (!window?.electron?.db) {
+				console.error("electron.db 未定义!");
+				return;
+			}
+
+			if (response) {
+				if (!userInfo.value?.id) {
+					console.error("当前用户ID不存在!");
+					return;
+				}
+
+				await window.electron.db.syncFriends(response);
+			} else {
+				console.error("好友列表数据格式错误:", response);
+			}
+		} catch (error) {
+			console.error("同步好友列表失败:", error);
+		}
+	};
+
 	const initAuth = () => {
 		const savedToken = localStorage.getItem(TOKEN_KEY);
 		if (savedToken) {
 			setToken(savedToken);
+			syncFriends();
 		}
 
 		const savedUserInfo = localStorage.getItem(USER_INFO_KEY);
@@ -75,7 +98,7 @@ export const useUserStore = defineStore("user", () => {
 			setUserInfo(null);
 			isAuthenticated.value = false;
 
-			// 清空 localStorage
+			// 清空本地存储
 			localStorage.removeItem("token");
 			localStorage.removeItem("userInfo");
 
@@ -99,22 +122,40 @@ export const useUserStore = defineStore("user", () => {
 
 	const login = async (params: LoginParams) => {
 		try {
+			console.log("开始登录...", params);
 			const response = await authApi.login(params);
-			setToken(response.token);
+			console.log("登录成功，响应数据:", response);
+
+			if (!response) {
+				console.error("登录响应数据无效");
+				return false;
+			}
+
+			const {token, user} = response;
+			setToken(token);
+			setUserInfo(user);
 
 			// 通过 electron API 保存用户信息到数据库
 			try {
-				await window.electron.db.createUser({
-					username: response.user.username,
-					email: response.user.email || "",
-					passwordHash: "", // 不存储密码
-					avatar: response.user.avatar,
+				console.log("准备保存用户信息到数据库:", user);
+				if (!window?.electron?.db) {
+					console.error("electron.db 未定义!");
+					return false;
+				}
+
+				const result = await window.electron.db.createLoginUser({
+					username: user.username,
+					avatar: user.avatar,
+					server_id: user.id,
 				});
+				console.log("用户信息保存/更新成功:", result);
+
+				// 登录成功后同步好友列表
+				await syncFriends();
 			} catch (error) {
-				console.error("保存用户信息失败:", error);
+				console.error("保存用户信息或同步好友列表失败:", error);
 			}
 
-			setUserInfo(response.user);
 			return true;
 		} catch (error) {
 			console.error("登录失败:", error);

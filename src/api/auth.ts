@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:14:45
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-19 20:33:41
+ * @LastEditTime : 2025-02-20 19:49:28
  * @FilePath     : /src/api/auth.ts
  * @Description  : auth api
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -12,18 +12,19 @@ import request from "@/utils/request";
 import type {
 	ApiResponse,
 	LoginParams,
-	LoginResult,
+	LoginResponse,
 	RegisterParams,
 	RegisterResult,
 	SearchResponse,
 	FriendRequestParams,
 	UserInfo,
+	Friend,
 } from "@/types/api";
 
 export const authApi = {
 	// 登录
-	login: (data: LoginParams) => {
-		return request.post<LoginResult>("/users/login", data);
+	login: (params: LoginParams) => {
+		return request.post<ApiResponse<LoginResponse>>("/users/login", params);
 	},
 
 	// 登出
@@ -93,5 +94,10 @@ export const authApi = {
 	// 获取用户信息
 	getUserInfo: () => {
 		return request.get<UserInfo>("/auth/user");
+	},
+
+	// 获取好友列表
+	getFriends: () => {
+		return request.get<ApiResponse<Friend[]>>("/users/friends");
 	},
 };

@@ -29,22 +29,19 @@ const router = createRouter({
 					component: () => import("@/views/Home/Home.vue"),
 				},
 			],
+			meta: {requiresAuth: true},
 		},
 		{
 			path: "/login",
 			name: "login",
 			component: () => import("@/views/Login/Login.vue"),
-			meta: {
-				requiresAuth: false,
-			},
+			meta: {requiresAuth: false},
 		},
 		{
 			path: "/register",
 			name: "register",
 			component: () => import("@/views/Register/Register.vue"),
-			meta: {
-				requiresAuth: false,
-			},
+			meta: {requiresAuth: false},
 		},
 		{
 			path: "/contacts",
@@ -61,22 +58,22 @@ const router = createRouter({
 	],
 });
 
-// 路由守卫
+// 全局路由守卫
 router.beforeEach((to, from, next) => {
 	const userStore = useUserStore();
-
-	// 检查用户是否已登录
 	const isAuthenticated = userStore.isAuthenticated;
 
-	// 需要认证但未登录
+	// 需要认证的路由
 	if (to.meta.requiresAuth && !isAuthenticated) {
-		next("/login");
+		console.log("未登录，重定向到登录页");
+		next({name: "login"});
 		return;
 	}
 
 	// 已登录用户访问登录/注册页面
-	if ((to.path === "/login" || to.path === "/register") && isAuthenticated) {
-		next("/");
+	if ((to.name === "login" || to.name === "register") && isAuthenticated) {
+		console.log("已登录，重定向到首页");
+		next({name: "home"});
 		return;
 	}
 

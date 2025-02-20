@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:08:47
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-19 20:40:55
+ * @LastEditTime : 2025-02-20 19:47:17
  * @FilePath     : /src/views/Contacts/Contacts.vue
  * @Description  : Contacts page
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -79,12 +79,22 @@ interface FriendRequest {
 	}
 }
 
+interface Friend {
+	id: number;
+	createdAt: string;
+	userId: number;
+	friendId: number;
+	friendUsername: string;
+	friendAvatar: string;
+}
+
 const searchQuery = ref('')
 const isSearching = ref(false)
 const searchResults = ref<SearchUser[]>([])
 const { toast } = useToast()
 
 const userStore = useUserStore()
+const friends = ref<Friend[]>([])
 
 // 新朋友列表
 const newFriendRequests = ref<FriendRequest[]>([])
@@ -107,6 +117,30 @@ const initFriendRequests = async () => {
 	}
 }
 
+// 获取好友列表
+const getFriendsList = async () => {
+	try {
+		if (!userStore.userInfo?.id) {
+			console.error("用户未登录!")
+			return
+		}
+
+		const friendsList = await window.electron.db.getFriends(userStore.userInfo.id)
+		console.log("获取好友列表成功:", friendsList)
+
+		// 更新联系人分组数据
+		contactGroups.value[1].count = friendsList.length
+		friends.value = friendsList.map(friend => ({
+			id: friend.friendId,
+			username: friend.friendUsername,
+			avatar: friend.friendAvatar,
+			createdAt: friend.createdAt,
+		}))
+	} catch (error) {
+		console.error("获取好友列表失败:", error)
+	}
+}
+
 onMounted(async () => {
 	// 初始化好友请求列表
 	await initFriendRequests()
@@ -116,6 +150,9 @@ onMounted(async () => {
 		newFriendRequests.value.unshift(data.data.request)
 		contactGroups.value[0].count = newFriendRequests.value.length
 	})
+
+	// 在组件挂载时获取好友列表
+	getFriendsList()
 })
 
 onUnmounted(() => {

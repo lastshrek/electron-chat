@@ -17,7 +17,7 @@
 	import {Eye, EyeOff} from "lucide-vue-next";
 	import {authApi} from "@/api/auth";
 	import {handleApiError} from "@/utils/error";
-	import {toast} from "@/components/ui/toast";
+	import {toast} from "@/components/ui/toast/use-toast";
 
 	const router = useRouter();
 	const userStore = useUserStore();
@@ -52,56 +52,51 @@
 	};
 
 	const handleLogin = async () => {
-		console.log('handleLogin started');
-		if (loading.value) {
-			console.log('Already loading, returning');
+		if (!username.value || !password.value) {
+			toast({
+				title: "错误",
+				description: "用户名和密码不能为空",
+				variant: "destructive",
+			});
 			return;
 		}
+
 		loading.value = true;
-		console.log('Loading state set to true');
+		console.log("正在尝试登录...", {username: username.value});
 
 		try {
+			// 加密密码
 			const encryptedPassword = encrypt(password.value);
-			console.log('Password encrypted');
+			console.log("密码已加密");
 
-			console.log('Sending login request:', { 
-				username: username.value, 
-				passwordLength: encryptedPassword.length,
-				remember: remember.value 
-			});
-
-			const result = await authApi.login({
+			const success = await userStore.login({
 				username: username.value,
 				password: encryptedPassword,
-				remember: remember.value,
 			});
 
-			console.log('Login API response:', result);
-
-			// 登录成功
-			userStore.setToken(result.token);
-			userStore.setUserInfo(result.user);
-			console.log('User store updated');
-
-			toast({
-				title: "登录成功",
-				description: "欢迎回来！",
-			});
-			console.log('Success toast shown');
-
-			console.log('Navigating to home');
-			router.push("/");
-		} catch (error: unknown) {
-			console.log('Login error:', error);
-			const apiError = handleApiError(error);
-			console.error("登录失败:", apiError);
+			if (success) {
+				console.log("登录成功，准备跳转");
+				toast({
+					title: "登录成功",
+					description: "欢迎回来！",
+				});
+				router.push("/");
+			} else {
+				console.error("登录失败");
+				toast({
+					title: "登录失败",
+					description: "用户名或密码错误",
+					variant: "destructive",
+				});
+			}
+		} catch (error) {
+			console.error("登录出错:", error);
 			toast({
 				title: "登录失败",
-				description: apiError.message,
+				description: "发生未知错误",
 				variant: "destructive",
 			});
 		} finally {
-			console.log('Setting loading to false');
 			loading.value = false;
 		}
 	};

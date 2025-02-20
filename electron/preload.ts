@@ -7,6 +7,43 @@
  */
 
 import {contextBridge, ipcRenderer} from "electron";
+import type {Friend} from "../src/types/api";
+
+// 定义数据库操作类型
+interface DBOperations {
+	createLoginUser: (params: {
+		server_id: number;
+		username: string;
+		avatar: string;
+	}) => Promise<any>;
+	getCurrentUser: () => Promise<any>;
+	syncFriends: (friends: Friend[]) => Promise<boolean>;
+	getFriends: (userId: number) => Promise<
+		{
+			id: number;
+			createdAt: string;
+			userId: number;
+			friendId: number;
+			friendUsername: string;
+			friendAvatar: string;
+		}[]
+	>;
+}
+
+// 定义 API 类型
+export interface ElectronAPI {
+	platform: string;
+	send: (channel: string, data: any) => void;
+	on: (channel: string, callback: Function) => void;
+	db: DBOperations;
+}
+
+// 声明全局 window 类型
+declare global {
+	interface Window {
+		electron: ElectronAPI;
+	}
+}
 
 function domReady(condition: DocumentReadyState[] = ["complete", "interactive"]) {
 	return new Promise((resolve) => {
@@ -111,8 +148,8 @@ function useLoading() {
 //     }
 // };
 
-// 简化 API 定义
-const api = {
+// API 实现
+const api: ElectronAPI = {
 	platform: process.platform,
 	send: (channel: string, data: any) => {
 		ipcRenderer.send(channel, data);
@@ -121,18 +158,19 @@ const api = {
 		ipcRenderer.on(channel, (_, data) => callback(data));
 	},
 	db: {
-		createUser: (params: any) => ipcRenderer.invoke("db:createUser", params),
-		getUserById: (id: number) => ipcRenderer.invoke("db:getUserById", id),
+		createLoginUser: (params) => ipcRenderer.invoke("db:createLoginUser", params),
+		getCurrentUser: () => ipcRenderer.invoke("db:getCurrentUser"),
+		syncFriends: (friends) => ipcRenderer.invoke("db:syncFriends", friends),
+		getFriends: (userId) => ipcRenderer.invoke("db:getFriends", userId),
 	},
 };
 
-// 使用 try-catch 包装 contextBridge
-try {
-	contextBridge.exposeInMainWorld("electron", api);
-} catch (error) {
-	console.error("Failed to expose API:", error);
-}
+// 暴露 API
+contextBridge.exposeInMainWorld("electron", api);
 
 window.addEventListener("DOMContentLoaded", () => {
 	console.log("Preload script loaded");
 });
+
+// 导出类型定义
+export type {ElectronAPI};

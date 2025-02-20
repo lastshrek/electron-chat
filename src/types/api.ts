@@ -9,32 +9,32 @@
  * 2025-02-19 00:21:30
  */
 // 通用响应类型
-export interface ApiResponse<T> {
+export interface ApiResponse<T = any> {
 	code: number;
-	message: string;
 	data: T;
+	message: string;
 }
 
 // 登录请求参数
 export interface LoginParams {
 	username: string;
 	password: string;
-	remember?: boolean;
 }
 
 // 登录响应数据
-export interface LoginResult {
-	token: string;
+export interface LoginResponse {
 	user: UserInfo;
+	token: string;
+	pendingRequests: any[]; // 可以根据需要定义具体类型
 }
 
 // 用户信息
 export interface UserInfo {
 	id: number;
 	username: string;
-	name: string | null;
 	avatar: string;
 	createdAt: string;
+	updatedAt: string;
 }
 
 // 注册请求参数
@@ -72,4 +72,24 @@ export interface SearchResponse {
 // 好友请求参数
 export interface FriendRequestParams {
 	toId: number;
+}
+
+// 好友信息
+export interface Friend {
+	id: number;
+	userId: number;
+	friendId: number;
+	createdAt: string;
+	friend: {
+		id: number;
+		username: string;
+		avatar: string;
+	};
+}
+
+// 好友列表响应
+export interface FriendsResponse {
+	code: number;
+	data: Friend[];
+	message: string;
 }
