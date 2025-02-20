@@ -24,7 +24,8 @@ export class FriendshipsDAL {
                 f.user_id as userId,
                 f.friend_id as friendId,
                 c.username as friendUsername,
-                c.avatar as friendAvatar
+                c.avatar as friendAvatar,
+                c.chat_id as chatId
             FROM ${this.tableName} f
             JOIN contacts c ON f.friend_id = c.server_id
             WHERE f.user_id = ?
@@ -44,6 +45,7 @@ export class FriendshipsDAL {
 				id: number;
 				username: string;
 				avatar: string;
+				chatId?: number;
 			};
 		}>
 	) {
@@ -62,15 +64,17 @@ export class FriendshipsDAL {
 			// 2. 更新现有好友的联系人信息
 			const updateContactStmt = db.prepare(`
                 UPDATE contacts 
-                SET username = @username, avatar = @avatar
+                SET username = @username, 
+                    avatar = @avatar,
+                    chat_id = @chatId
                 WHERE server_id = @server_id
             `);
 
 			// 3. 插入新好友的联系人信息
 			const insertContactStmt = db.prepare(`
                 INSERT INTO contacts 
-                (server_id, username, avatar)
-                VALUES (@server_id, @username, @avatar)
+                (server_id, username, avatar, chat_id)
+                VALUES (@server_id, @username, @avatar, @chatId)
             `);
 
 			// 4. 插入新的好友关系
@@ -86,6 +90,7 @@ export class FriendshipsDAL {
 					server_id: friend.friend.id,
 					username: friend.friend.username,
 					avatar: friend.friend.avatar,
+					chatId: friend.friend.chatId || null,
 				};
 
 				if (currentFriendIds.has(friend.friend.id)) {

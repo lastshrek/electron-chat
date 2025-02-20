@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:08:47
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-20 19:47:17
+ * @LastEditTime : 2025-02-20 21:58:15
  * @FilePath     : /src/views/Contacts/Contacts.vue
  * @Description  : Contacts page
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -29,6 +29,7 @@ import { useToast } from '@/components/ui/toast'
 import { useUserStore } from '@/stores/user'
 import { handleApiError } from '@/utils/error'
 import { eventBus } from '@/utils/eventBus'
+import type { FriendRequest } from "@/types/api"
 
 // 分组数据
 interface ContactGroup {
@@ -54,29 +55,6 @@ interface SearchUser {
 	createdAt: string
 	isFriend?: boolean
 	description?: string
-}
-
-// 修改好友请求类型定义
-interface FriendRequest {
-	id: number
-	fromId: number
-	toId: number
-	status: 'PENDING' | 'ACCEPTED' | 'REJECTED'
-	message: string | null
-	createdAt: string
-	updatedAt: string
-	from: {
-		id: number
-		username: string
-		name: string | null
-		avatar: string
-	}
-	to: {
-		id: number
-		username: string
-		name: string | null
-		avatar: string
-	}
 }
 
 interface Friend {
@@ -121,7 +99,7 @@ const initFriendRequests = async () => {
 const getFriendsList = async () => {
 	try {
 		if (!userStore.userInfo?.id) {
-			console.error("用户未登录!")
+			console.error("用户ID不存在")
 			return
 		}
 
@@ -129,15 +107,26 @@ const getFriendsList = async () => {
 		console.log("获取好友列表成功:", friendsList)
 
 		// 更新联系人分组数据
-		contactGroups.value[1].count = friendsList.length
-		friends.value = friendsList.map(friend => ({
-			id: friend.friendId,
-			username: friend.friendUsername,
-			avatar: friend.friendAvatar,
-			createdAt: friend.createdAt,
-		}))
+		const contactsGroup = contactGroups.value.find(g => g.id === 'contacts')
+		if (contactsGroup) {
+			contactsGroup.count = friendsList.length
+			// 更新好友列表项，不包含加入时间
+			contactsGroup.items = friendsList.map(friend => ({
+				id: friend.friendId,
+				name: friend.friendUsername,
+				avatar: friend.friendAvatar
+			}))
+		}
+
+		// 保存原始好友数据
+		friends.value = friendsList
 	} catch (error) {
 		console.error("获取好友列表失败:", error)
+		toast({
+			variant: 'destructive',
+			title: '获取好友列表失败',
+			description: '请稍后重试'
+		})
 	}
 }
 
@@ -214,26 +203,7 @@ const contactGroups = ref<ContactGroup[]>([
 		title: '联系人',
 		icon: User,
 		expanded: false,
-		items: [
-			{
-				id: 7,
-				name: 'Alice Johnson',
-				avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alice',
-				description: '设计师',
-			},
-			{
-				id: 8,
-				name: 'Bob Smith',
-				avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bob',
-				description: '后端工程师',
-			},
-			{
-				id: 9,
-				name: 'Carol White',
-				avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Carol',
-				description: '产品经理',
-			},
-		],
+		items: [],
 	},
 ])
 
@@ -543,18 +513,24 @@ const handleAcceptFriend = async () => {
 			<!-- 联系人列表 -->
 			<div class="flex-1 overflow-y-auto">
 				<div class="divide-y">
-					<div v-for="group in displayGroups" :key="group.id" class="group">
-						<!-- 分组标题 -->
-						<div class="flex items-center px-4 py-2 cursor-pointer hover:bg-slate-100" @click="toggleGroup(group.id)">
-							<component :is="group.icon" class="h-4 w-4 text-slate-400 mr-2" />
-							<span class="text-sm font-medium flex-1">{{ group.title }}</span>
-							<span
-								v-if="group.count && group.count > 0"
-								class="min-w-5 h-5 px-1.5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-medium mr-2"
+					<div v-for="group in filteredGroups" :key="group.id" class="group-item">
+						<div
+							class="group-header flex items-center px-4 py-2 cursor-pointer hover:bg-slate-100"
+							@click="toggleGroup(group.id)"
+						>
+							<component :is="group.icon" class="w-5 h-5 mr-2" />
+							<span class="flex-1">{{ group.title }}</span>
+							<!-- 联系人分组显示数量 -->
+							<span 
+								v-if="group.id === 'contacts' || (group.id === 'new-friends' && group.count > 0)" 
+								class="text-sm text-slate-400 mr-2"
 							>
-								{{ group.count }}
+								{{ group.count || 0 }}
 							</span>
-							<component :is="group.expanded ? ChevronDown : ChevronRight" class="h-4 w-4 text-slate-400" />
+							<component
+								:is="group.expanded ? ChevronDown : ChevronRight"
+								class="w-4 h-4"
+							/>
 						</div>
 
 						<!-- 分组内容 -->
@@ -569,7 +545,6 @@ const handleAcceptFriend = async () => {
 								<img :src="item.avatar" :alt="item.name" class="w-10 h-10 rounded-lg mr-3" />
 								<div class="flex-1 min-w-0">
 									<div class="font-medium">{{ item.name }}</div>
-									<div class="text-sm text-slate-500 truncate">{{ item.description }}</div>
 								</div>
 							</div>
 						</div>

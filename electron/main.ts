@@ -96,10 +96,10 @@ const setupIPCHandlers = () => {
 	});
 
 	// 同步好友列表
-	ipcMain.handle("db:syncFriends", async (event, friends) => {
+	ipcMain.handle("db:syncFriends", async (event, friends, userId) => {
 		try {
 			console.log("正在同步好友列表, 数量:", friends.length);
-			return await FriendshipsDAL.syncFriendships(friends[0].userId, friends);
+			return await FriendshipsDAL.syncFriendships(userId, friends);
 		} catch (error) {
 			console.error("同步好友列表失败:", error);
 			throw error;
@@ -128,28 +128,27 @@ const setupIPCHandlers = () => {
 		}
 	});
 
-	// 获取联系人信息
+	// 清除登录用户
+	ipcMain.handle("db:clearLoginUser", async () => {
+		try {
+			LoginUserDAL.clear();
+			return true;
+		} catch (error) {
+			console.error("清除登录用户失败:", error);
+			throw error;
+		}
+	});
+
+	// 获取用户信息
 	ipcMain.handle("db:getUserById", async (event, id) => {
 		try {
-			// 先从 login_user 表查找
-			let stmt = db!.prepare(`
+			const stmt = db!.prepare(`
 				SELECT id, username, avatar, created_at as createdAt, updated_at as updatedAt
-				FROM login_user WHERE server_id = ?
+				FROM users WHERE id = ?
 			`);
-			let user = stmt.get(id);
-
-			// 如果不是登录用户，则从 contacts 表查找
-			if (!user) {
-				stmt = db!.prepare(`
-					SELECT id, username, avatar, created_at as createdAt, updated_at as updatedAt
-					FROM contacts WHERE server_id = ?
-				`);
-				user = stmt.get(id);
-			}
-
-			return user;
+			return stmt.get(id);
 		} catch (error) {
-			console.error("获取用户信息失败:", error);
+			console.error("获取用户失败:", error);
 			throw error;
 		}
 	});

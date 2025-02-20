@@ -61,7 +61,7 @@ export const useUserStore = defineStore("user", () => {
 					return;
 				}
 
-				await window.electron.db.syncFriends(response);
+				await window.electron.db.syncFriends(response, userInfo.value.id);
 			} else {
 				console.error("好友列表数据格式错误:", response);
 			}

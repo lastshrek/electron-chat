@@ -70,6 +70,42 @@ const migrations: Migration[] = [
 			// ... 暂时不需要实现 ...
 		],
 	},
+	{
+		version: 3,
+		name: "add_chat_id_to_contacts",
+		up: [
+			// 添加 chatId 字段到 contacts 表
+			`ALTER TABLE contacts 
+			 ADD COLUMN chat_id INTEGER DEFAULT NULL`,
+
+			// 创建索引以优化查询
+			`CREATE INDEX IF NOT EXISTS idx_contacts_chat_id 
+			 ON contacts(chat_id)`,
+		],
+		down: [
+			// 删除索引
+			`DROP INDEX IF EXISTS idx_contacts_chat_id`,
+
+			// 删除 chatId 字段
+			// SQLite 不支持 DROP COLUMN，需要重建表
+			`CREATE TABLE contacts_temp (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				server_id INTEGER UNIQUE NOT NULL,
+				username TEXT NOT NULL,
+				avatar TEXT,
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+				updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+			)`,
+
+			`INSERT INTO contacts_temp 
+			 SELECT id, server_id, username, avatar, created_at, updated_at 
+			 FROM contacts`,
+
+			`DROP TABLE contacts`,
+
+			`ALTER TABLE contacts_temp RENAME TO contacts`,
+		],
+	},
 ];
 
 export class DBMigration {

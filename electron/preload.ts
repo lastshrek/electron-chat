@@ -17,7 +17,7 @@ interface DBOperations {
 		avatar: string;
 	}) => Promise<any>;
 	getCurrentUser: () => Promise<any>;
-	syncFriends: (friends: Friend[]) => Promise<boolean>;
+	syncFriends: (friends: Friend[], userId: number) => Promise<boolean>;
 	getFriends: (userId: number) => Promise<
 		{
 			id: number;
@@ -160,7 +160,7 @@ const api: ElectronAPI = {
 	db: {
 		createLoginUser: (params) => ipcRenderer.invoke("db:createLoginUser", params),
 		getCurrentUser: () => ipcRenderer.invoke("db:getCurrentUser"),
-		syncFriends: (friends) => ipcRenderer.invoke("db:syncFriends", friends),
+		syncFriends: (friends, userId) => ipcRenderer.invoke("db:syncFriends", friends, userId),
 		getFriends: (userId) => ipcRenderer.invoke("db:getFriends", userId),
 	},
 };
