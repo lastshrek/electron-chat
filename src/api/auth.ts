@@ -101,3 +101,11 @@ export const authApi = {
 		return request.get<ApiResponse<Friend[]>>("/users/friends");
 	},
 };
+
+export async function createLoginUser(user: {
+	id: number; // 确保有这个字段
+	username: string;
+	avatar: string;
+}) {
+	return await window.electron.ipcRenderer.invoke("db:createLoginUser", user);
+}

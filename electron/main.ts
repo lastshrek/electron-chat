@@ -10,6 +10,7 @@ import {getDB} from "../src/db";
 import {LoginUserDAL} from "../src/db/dal/login-user";
 import {ContactsDAL} from "../src/db/dal/contacts";
 import {FriendshipsDAL} from "../src/db/dal/friendships";
+import {DatabaseMigrations} from "../src/db/migrations";
 
 /**
  * ** The built directory structure
@@ -42,7 +43,12 @@ const initDatabase = () => {
 			verbose: process.env.NODE_ENV === "development" ? console.log : undefined,
 		});
 
+		// 先执行迁移
+		DatabaseMigrations.migrate();
+
+		// 然后初始化其他表结构
 		initSchema(db);
+
 		console.log("数据库初始化成功");
 		return true;
 	} catch (error) {
@@ -58,8 +64,12 @@ const setupIPCHandlers = () => {
 		try {
 			console.log("正在创建/更新登录用户:", params);
 
+			if (!params.user_id) {
+				throw new Error("用户ID不能为空");
+			}
+
 			// 先检查用户是否已存在
-			const existingUser = LoginUserDAL.findByServerId(params.server_id);
+			const existingUser = LoginUserDAL.findByUserId(params.user_id);
 
 			let result;
 			if (existingUser) {
@@ -70,7 +80,7 @@ const setupIPCHandlers = () => {
 					existingUser.avatar !== params.avatar
 				) {
 					console.log("用户信息有变化，进行更新");
-					result = LoginUserDAL.update(params.server_id, {
+					result = LoginUserDAL.update(params.user_id, {
 						username: params.username,
 						avatar: params.avatar,
 					});
@@ -81,7 +91,7 @@ const setupIPCHandlers = () => {
 			} else {
 				console.log("未找到现有用户，创建新用户");
 				result = LoginUserDAL.create({
-					server_id: params.server_id,
+					user_id: params.user_id,
 					username: params.username,
 					avatar: params.avatar,
 				});
@@ -149,6 +159,186 @@ const setupIPCHandlers = () => {
 			return stmt.get(id);
 		} catch (error) {
 			console.error("获取用户失败:", error);
+			throw error;
+		}
+	});
+
+	// 获取聊天列表
+	ipcMain.handle("db:getChats", async () => {
+		try {
+			const db = getDB();
+
+			// 获取当前用户
+			const currentUser = LoginUserDAL.getCurrentUser();
+			if (!currentUser) {
+				throw new Error("未找到当前登录用户");
+			}
+
+			// 1. 先获取所有聊天
+			const chatsStmt = db.prepare(`
+				SELECT DISTINCT
+					c.*,
+					CASE 
+						WHEN c.type = 'DIRECT' THEN (
+							SELECT co.username 
+							FROM chat_participants cp2
+							JOIN contacts co ON cp2.user_id = co.user_id
+							WHERE cp2.chat_id = c.chat_id 
+							AND cp2.user_id != ?
+							LIMIT 1
+						)
+						ELSE c.name 
+					END as display_name
+				FROM chats c
+				JOIN chat_participants cp ON c.chat_id = cp.chat_id
+				WHERE cp.user_id = ?
+			`);
+			const chats = chatsStmt.all(currentUser.user_id, currentUser.user_id);
+			console.log("查询到的聊天:", chats);
+
+			// 2. 为每个聊天获取参与者
+			const participantsStmt = db.prepare(`
+				SELECT 
+					cp.user_id,
+					co.username,
+					co.avatar,
+					cp.role
+				FROM chat_participants cp
+				JOIN contacts co ON cp.user_id = co.user_id
+				WHERE cp.chat_id = ? AND cp.user_id != ?
+			`);
+
+			// 3. 组合数据
+			const result = chats.map((chat) => ({
+				...chat,
+				participants: participantsStmt.all(chat.chat_id, currentUser.user_id),
+			}));
+
+			console.log("获取聊天列表结果:", result);
+			return result;
+		} catch (error) {
+			console.error("获取聊天列表失败:", error);
+			throw error;
+		}
+	});
+
+	// 添加或更新聊天
+	ipcMain.handle("db:upsertChat", async (event, chat, currentUserId) => {
+		const db = getDB();
+		console.log("开始保存聊天:", chat, "当前用户:", currentUserId);
+
+		db.exec("BEGIN TRANSACTION");
+		try {
+			// 插入或更新聊天
+			const chatStmt = db.prepare(`
+				INSERT OR REPLACE INTO chats 
+				(chat_id, type, name) 
+				VALUES (?, ?, ?)
+			`);
+			chatStmt.run(chat.chat_id, chat.type, chat.name);
+
+			// 对于单聊，确保双方都被添加为参与者
+			if (chat.type === "DIRECT") {
+				// 先删除现有的参与者记录，避免重复
+				const deleteStmt = db.prepare(`
+					DELETE FROM chat_participants 
+					WHERE chat_id = ?
+				`);
+				deleteStmt.run(chat.chat_id);
+
+				// 添加参与者
+				const participantStmt = db.prepare(`
+					INSERT INTO chat_participants 
+					(chat_id, user_id, role) 
+					VALUES (?, ?, 'MEMBER')
+				`);
+
+				// 添加当前用户为参与者
+				participantStmt.run(chat.chat_id, currentUserId);
+
+				// 添加对方为参与者（对于单聊，chat_id 就是对方的 user_id）
+				participantStmt.run(chat.chat_id, chat.chat_id);
+
+				console.log("已添加聊天参与者:", {
+					chatId: chat.chat_id,
+					currentUserId,
+					otherUserId: chat.chat_id,
+				});
+			} else {
+				// 群聊的处理逻辑...
+				for (const participant of chat.participants) {
+					const participantStmt = db.prepare(`
+						INSERT OR REPLACE INTO chat_participants 
+						(chat_id, user_id, role) 
+						VALUES (?, ?, ?)
+					`);
+					participantStmt.run(
+						chat.chat_id,
+						participant.user_id,
+						participant.role || "MEMBER"
+					);
+				}
+			}
+
+			db.exec("COMMIT");
+			return true;
+		} catch (error) {
+			db.exec("ROLLBACK");
+			console.error("保存聊天失败:", error);
+			throw error;
+		}
+	});
+
+	// 获取聊天参与者
+	ipcMain.handle("db:getChatParticipants", async (event, chatId) => {
+		try {
+			const db = getDB();
+			console.log("开始查询聊天参与者, chatId:", chatId);
+
+			// 获取当前用户
+			const currentUser = LoginUserDAL.getCurrentUser();
+			if (!currentUser) {
+				throw new Error("未找到当前登录用户");
+			}
+
+			// 先查询聊天信息
+			const chatStmt = db.prepare(`
+				SELECT * FROM chats WHERE chat_id = ?
+			`);
+			const chat = chatStmt.get(chatId);
+			console.log("聊天信息:", chat);
+
+			if (!chat) {
+				throw new Error("聊天不存在");
+			}
+
+			// 查询参与者（排除当前用户）
+			const participantsStmt = db.prepare(`
+				SELECT 
+					c.*,
+					cp.role,
+					f.id as friendship_id,
+					f.created_at as friend_since
+				FROM chat_participants cp
+				JOIN contacts c ON cp.user_id = c.user_id
+				LEFT JOIN friendships f ON (
+					(f.user_id = ? AND f.friend_id = c.user_id) OR 
+					(f.friend_id = ? AND f.user_id = c.user_id)
+				)
+				WHERE cp.chat_id = ? AND cp.user_id != ?
+			`);
+
+			const results = participantsStmt.all(
+				currentUser.user_id,
+				currentUser.user_id,
+				chatId,
+				currentUser.user_id
+			);
+
+			console.log("聊天参与者查询结果:", results);
+			return results;
+		} catch (error) {
+			console.error("获取聊天参与者失败:", error);
 			throw error;
 		}
 	});

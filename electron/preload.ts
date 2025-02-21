@@ -11,11 +11,7 @@ import type {Friend} from "../src/types/api";
 
 // 定义数据库操作类型
 interface DBOperations {
-	createLoginUser: (params: {
-		server_id: number;
-		username: string;
-		avatar: string;
-	}) => Promise<any>;
+	createLoginUser: (params: {user_id: number; username: string; avatar: string}) => Promise<any>;
 	getCurrentUser: () => Promise<any>;
 	syncFriends: (friends: Friend[], userId: number) => Promise<boolean>;
 	getFriends: (userId: number) => Promise<
@@ -28,6 +24,35 @@ interface DBOperations {
 			friendAvatar: string;
 		}[]
 	>;
+	getChats: () => Promise<
+		Array<{
+			chat_id: number;
+			type: "DIRECT" | "GROUP";
+			name: string | null;
+			participant_ids: string;
+			participant_names: string;
+			participant_avatars: string;
+		}>
+	>;
+	upsertChat: (chat: {
+		chat_id: number;
+		type: "DIRECT" | "GROUP";
+		name: string | null;
+		participants: Array<{
+			user_id: number;
+			username: string;
+			avatar: string;
+		}>;
+	}) => Promise<boolean>;
+	getChatParticipants: (chatId: number) => Promise<
+		Array<{
+			chat_id: number;
+			user_id: number;
+			role: string;
+			username: string;
+			avatar: string;
+		}>
+	>;
 }
 
 // 定义 API 类型
@@ -35,6 +60,7 @@ export interface ElectronAPI {
 	platform: string;
 	send: (channel: string, data: any) => void;
 	on: (channel: string, callback: Function) => void;
+	removeAllListeners: (channel: string) => void;
 	db: DBOperations;
 }
 
@@ -157,11 +183,18 @@ const api: ElectronAPI = {
 	on: (channel: string, callback: Function) => {
 		ipcRenderer.on(channel, (_, data) => callback(data));
 	},
+	removeAllListeners: (channel: string) => {
+		ipcRenderer.removeAllListeners(channel);
+	},
 	db: {
 		createLoginUser: (params) => ipcRenderer.invoke("db:createLoginUser", params),
 		getCurrentUser: () => ipcRenderer.invoke("db:getCurrentUser"),
 		syncFriends: (friends, userId) => ipcRenderer.invoke("db:syncFriends", friends, userId),
 		getFriends: (userId) => ipcRenderer.invoke("db:getFriends", userId),
+		getChats: () => ipcRenderer.invoke("db:getChats"),
+		upsertChat: (chat: any) => ipcRenderer.invoke("db:upsertChat", chat),
+		getChatParticipants: (chatId: number) =>
+			ipcRenderer.invoke("db:getChatParticipants", chatId),
 	},
 };
 

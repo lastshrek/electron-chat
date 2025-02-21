@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:12:22
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-20 21:49:06
+ * @LastEditTime : 2025-02-21 21:40:37
  * @FilePath     : /src/stores/user.ts
  * @Description  : user store
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -146,7 +146,7 @@ export const useUserStore = defineStore("user", () => {
 				const result = await window.electron.db.createLoginUser({
 					username: user.username,
 					avatar: user.avatar,
-					server_id: user.id,
+					user_id: user.id,
 				});
 				console.log("用户信息保存/更新成功:", result);
 

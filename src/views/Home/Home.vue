@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:28:39
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-19 23:28:15
+ * @LastEditTime : 2025-02-21 21:43:35
  * @FilePath     : /src/views/Home/Home.vue
  * @Description  : 
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -29,9 +29,9 @@
 					>
 						<!-- 头像 -->
 						<div class="relative">
-							<img
-								:src="getOtherParticipant(chat)?.avatar"
-								:alt="getOtherParticipant(chat)?.username"
+							<AsyncImage
+								:src="otherParticipants.get(chat.id)?.avatar"
+								:alt="otherParticipants.get(chat.id)?.username"
 								class="w-12 h-12 rounded-lg hover:rounded-3xl transition-all duration-300"
 							/>
 							<div
@@ -46,7 +46,7 @@
 						<div class="flex-1 min-w-0">
 							<div class="flex items-center justify-between">
 								<span class="font-medium truncate">
-									{{ getOtherParticipant(chat)?.username }}
+									{{ otherParticipants.get(chat.id)?.username }}
 								</span>
 								<span v-if="chat.lastMessage" class="text-xs text-slate-400">
 									{{ formatTime(chat.lastMessage.timestamp) }}
@@ -73,7 +73,7 @@
 				<div class="h-14 border-b flex items-center px-4 shrink-0">
 					<div class="flex items-center truncate">
 						<h2 class="font-medium truncate">
-							{{ getOtherParticipant(selectedChat)?.username }}
+							{{ otherParticipants.get(selectedChat.id)?.username }}
 						</h2>
 					</div>
 				</div>
@@ -234,7 +234,6 @@
 </template>
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, nextTick, onUnmounted } from 'vue'
-import { Button } from '@/components/ui/button'
 import { useUserStore } from '@/stores/user'
 import { wsService } from '@/services/ws'
 import MainLayout from '@/components/layout/MainLayout.vue'
@@ -255,7 +254,8 @@ import {
 import {useRoute, useRouter} from 'vue-router';
 import { ChatTypingManager } from '@/utils/chat-typing';
 import TypingIndicator from '@/components/ui/typing-indicator.vue';
-
+import AsyncImage from '@/components/ui/async-image.vue';
+const TAG = '🏠️Home:';
 const userStore = useUserStore()
 const message = ref('')
 const selectedChat = ref<ChatInfo | null>(null)
@@ -276,10 +276,103 @@ const messageList = ref<HTMLElement | null>(null);
 const typingUsers = ref<number[]>([]);
 const typingManager = ref<ChatTypingManager>();
 
+// 缓存聊天参与者数据
+const participantsCache = ref(new Map<number, Array<{
+	chat_id: number;
+	user_id: number;
+	role: string;
+	username: string;
+	avatar: string;
+}>>());
+
+// 存储其他参与者信息的响应式对象
+const otherParticipants = ref(new Map<number, {
+	username: string;
+	avatar: string;
+	user_id: number;
+	chat_id: number;
+	friendship_id?: number;
+	friend_since?: string;
+}>());
+
 // 获取对话的另一方信息
-const getOtherParticipant = (chat: ChatInfo) => {
-	return chat.participants.find((p) => p.id !== userStore.userInfo?.id)
-}
+const getOtherParticipant = async (chat: ChatInfo) => {
+	if (!window.electron?.db) return null;
+	
+	try {
+		// 先检查缓存
+		if (!participantsCache.value.has(chat.id)) {
+			console.log(TAG, '从数据库获取聊天参与者:', chat.id);
+			const participants = await window.electron.db.getChatParticipants(chat.id);
+			participantsCache.value.set(chat.id, participants);
+			
+			// 找到非当前用户的参与者并更新 otherParticipants
+			const otherParticipant = participants.find(p => p.user_id !== userStore.userInfo?.id);
+			if (otherParticipant) {
+				otherParticipants.value.set(chat.id, {
+					username: otherParticipant.username,
+					avatar: otherParticipant.avatar,
+					user_id: otherParticipant.user_id,
+					server_id: otherParticipant.server_id,
+					friendship_id: otherParticipant.friendship_id,
+					friend_since: otherParticipant.friend_since
+				});
+			}
+		}
+		
+		return otherParticipants.value.get(chat.id);
+	} catch (error) {
+		console.error(TAG, '获取聊天参与者失败:', error);
+		return null;
+	}
+};
+
+// 加载所有聊天的参与者信息
+const loadAllParticipants = async () => {
+	for (const chat of chats.value.values()) {
+		await getOtherParticipant(chat);
+	}
+};
+
+// 监听聊天列表变化
+watch(() => chats.value.size, async () => {
+	clearParticipantCache();
+	await loadAllParticipants();
+});
+
+// 在组件挂载时加载参与者信息
+onMounted(loadAllParticipants);
+
+// 在模板中使用的计算属性
+const otherParticipantMap = computed(() => {
+	const map = new Map<number, {
+		username: string;
+		avatar: string;
+		user_id: number;
+	} | null>();
+	
+	Array.from(chats.value.values()).forEach(async chat => {
+		const participant = await getOtherParticipant(chat);
+		if (participant) {
+			map.set(chat.id, {
+				username: participant.username,
+				avatar: participant.avatar,
+				user_id: participant.user_id
+			});
+		}
+	});
+	
+	return map;
+});
+
+// 清除缓存的辅助方法
+const clearParticipantCache = (chatId?: number) => {
+	if (chatId) {
+		participantsCache.value.delete(chatId);
+	} else {
+		participantsCache.value.clear();
+	}
+};
 
 // 选择聊天
 const selectChat = (chat: ChatInfo) => {
@@ -298,21 +391,28 @@ const selectChat = (chat: ChatInfo) => {
 // 监听路由变化，自动选择聊天
 watch(
 	() => route.params.chatId,
-	(chatId, oldChatId) => {
-		// 如果有旧的聊天ID，先离开旧的聊天室
-		if (oldChatId) {
-			wsService.leaveChat(Number(oldChatId));
-		}
-
+	(chatId) => {
+		console.log('Route chatId changed:', chatId);
+		console.log('Available chats:', Array.from(chats.value.entries()));
+		
 		if (chatId) {
 			const chat = chats.value.get(Number(chatId));
+			console.log('Found chat:', chat);
 			if (chat) {
 				selectedChat.value = chat;
 				chatStore.clearUnread(chat.id);
-				// 加入新的聊天室
+				// 加入聊天室
 				wsService.joinChat(chat.id);
 				nextTick(() => {
 					scrollToBottom();
+				});
+			} else {
+				console.error('Chat not found:', chatId);
+				// 可能需要添加错误提示
+				toast({
+					variant: 'destructive',
+					title: '聊天不存在',
+					description: '请重新选择聊天'
 				});
 			}
 		} else {
@@ -347,7 +447,7 @@ const sendMessage = async () => {
 
 	// 先停止输入状态
 	handleStopTyping();
-
+	console.log(TAG, '发送消息:', selectedChat.value);
 	const success = await messageService.sendTextMessage(
 		selectedChat.value.id,
 		getOtherParticipant(selectedChat.value)!.id,

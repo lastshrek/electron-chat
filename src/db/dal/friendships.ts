@@ -1,5 +1,6 @@
 import {getDB} from "../index";
 import type {Friendship, FriendWithDetails} from "../entities";
+import {LoginUserDAL} from "./login-user";
 
 export class FriendshipsDAL {
 	static tableName = "friendships";
@@ -27,107 +28,118 @@ export class FriendshipsDAL {
                 c.avatar as friendAvatar,
                 c.chat_id as chatId
             FROM ${this.tableName} f
-            JOIN contacts c ON f.friend_id = c.server_id
+            LEFT JOIN contacts c ON f.friend_id = c.user_id
             WHERE f.user_id = ?
             ORDER BY f.created_at DESC
         `);
-		return stmt.all(userId) as FriendWithDetails[];
+
+		console.log("查询好友列表SQL参数:", userId);
+		const results = stmt.all(userId);
+		console.log("查询好友列表结果:", results);
+
+		return results as FriendWithDetails[];
 	}
 
-	static syncFriendships(
+	static async syncFriendships(
 		userId: number,
 		friends: Array<{
-			id: number;
-			userId: number;
 			friendId: number;
-			createdAt: string;
 			friend: {
 				id: number;
 				username: string;
 				avatar: string;
-				chatId?: number;
+				chatId: number;
 			};
 		}>
-	) {
+	): Promise<boolean> {
 		const db = getDB();
-		console.log("开始同步好友关系, userId:", userId, "好友列表:", friends);
+		console.log("开始同步好友关系, userId:", userId);
+		console.log("接收到的好友数据:", friends);
+
+		// 确保 userId 是整数
+		userId = Math.floor(userId);
+
+		// 获取新好友的 ID 列表
+		const newFriendIds = friends.map((f) => Math.floor(f.friend.id)).filter((id) => id);
+		console.log("新的好友ID列表:", newFriendIds);
 
 		db.exec("BEGIN TRANSACTION");
 		try {
-			// 1. 获取当前所有好友关系
-			const currentFriends = this.findByUserId(userId);
-			console.log("当前好友列表:", currentFriends);
-
-			const currentFriendIds = new Set(currentFriends.map((f) => f.friendId));
-			const newFriendIds = new Set(friends.map((f) => f.friend.id));
-
-			// 2. 更新现有好友的联系人信息
-			const updateContactStmt = db.prepare(`
-                UPDATE contacts 
-                SET username = @username, 
-                    avatar = @avatar,
-                    chat_id = @chatId
-                WHERE server_id = @server_id
-            `);
-
-			// 3. 插入新好友的联系人信息
-			const insertContactStmt = db.prepare(`
+			// 1. 先创建/更新联系人记录
+			const upsertContactStmt = db.prepare(`
                 INSERT INTO contacts 
-                (server_id, username, avatar, chat_id)
-                VALUES (@server_id, @username, @avatar, @chatId)
+                (user_id, username, avatar, chat_id)
+                VALUES (?, ?, ?, NULL)
+                ON CONFLICT(user_id) DO UPDATE SET
+                username = excluded.username,
+                avatar = excluded.avatar,
+                updated_at = CURRENT_TIMESTAMP
             `);
 
-			// 4. 插入新的好友关系
-			const insertFriendshipStmt = db.prepare(`
-                INSERT INTO ${this.tableName}
-                (user_id, friend_id, created_at)
-                VALUES (@user_id, @friend_id, @created_at)
+			// 2. 创建聊天记录
+			const chatStmt = db.prepare(`
+                INSERT OR IGNORE INTO chats 
+                (chat_id, type, name)
+                VALUES (?, 'DIRECT', NULL)
             `);
 
-			// 5. 处理每个好友
-			for (const friend of friends) {
-				const friendData = {
-					server_id: friend.friend.id,
-					username: friend.friend.username,
-					avatar: friend.friend.avatar,
-					chatId: friend.friend.chatId || null,
-				};
+			// 3. 更新联系人的 chat_id
+			const updateContactChatStmt = db.prepare(`
+                UPDATE contacts
+                SET chat_id = ?
+                WHERE user_id = ?
+            `);
 
-				if (currentFriendIds.has(friend.friend.id)) {
-					// 已存在的好友，只更新资料
-					console.log("更新好友资料:", friend.friend.username);
-					updateContactStmt.run(friendData);
-				} else {
-					// 新好友，插入联系人信息和好友关系
-					console.log("添加新好友:", friend.friend.username);
-					insertContactStmt.run(friendData);
-					insertFriendshipStmt.run({
-						user_id: userId,
-						friend_id: friend.friend.id,
-						created_at: friend.createdAt,
-					});
+			// 处理每个好友的数据
+			for (const {friend} of friends) {
+				console.log("处理好友数据:", friend);
+				if (!friend.id || !friend.username || !friend.chatId) {
+					console.warn("跳过无效的好友数据:", friend);
+					continue;
 				}
+
+				const friendId = Math.floor(friend.id);
+				const chatId = Math.floor(friend.chatId);
+
+				// 1. 先创建联系人记录
+				upsertContactStmt.run(friendId, friend.username, friend.avatar || null);
+
+				// 2. 创建聊天记录
+				chatStmt.run(chatId);
+
+				// 3. 更新联系人的 chat_id
+				updateContactChatStmt.run(chatId, friendId);
 			}
 
-			// 6. 删除不再是好友的关系
-			const friendIdsToDelete = Array.from(currentFriendIds).filter(
-				(id) => !newFriendIds.has(id)
-			);
-			if (friendIdsToDelete.length > 0) {
-				console.log("需要删除的好友关系:", friendIdsToDelete);
-				const removeFriendshipStmt = db.prepare(`
+			// 4. 删除不再是好友的记录
+			if (newFriendIds.length > 0) {
+				const placeholders = newFriendIds.map(() => "?").join(",");
+				const deleteFriendshipsStmt = db.prepare(`
                     DELETE FROM ${this.tableName}
-                    WHERE user_id = ? AND friend_id = ?
+                    WHERE user_id = ?
+                    AND friend_id NOT IN (${placeholders})
                 `);
+				deleteFriendshipsStmt.run(userId, ...newFriendIds);
+			}
 
-				for (const friendId of friendIdsToDelete) {
-					console.log("删除好友关系:", friendId);
-					removeFriendshipStmt.run(userId, friendId);
-				}
+			// 5. 创建或更新好友关系
+			const upsertFriendshipStmt = db.prepare(`
+                INSERT INTO ${this.tableName}
+                (user_id, friend_id, created_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(user_id, friend_id) DO UPDATE SET
+                updated_at = CURRENT_TIMESTAMP
+            `);
+
+			for (const {friend} of friends) {
+				if (!friend.id) continue;
+				const friendId = Math.floor(friend.id);
+				// 确保 user_id 总是较小的 ID，friend_id 总是较大的 ID
+				const [smallerId, biggerId] = [userId, friendId].sort((a, b) => a - b);
+				upsertFriendshipStmt.run(smallerId, biggerId);
 			}
 
 			db.exec("COMMIT");
-			console.log("好友关系同步完成");
 			return true;
 		} catch (error) {
 			console.error("同步好友关系失败:", error);

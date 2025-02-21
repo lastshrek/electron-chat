@@ -5,13 +5,13 @@ export interface BaseEntity {
 }
 
 export interface LoginUser extends BaseEntity {
-	server_id: number;
+	user_id: number;
 	username: string;
 	avatar: string;
 }
 
 export interface Contact extends BaseEntity {
-	server_id: number;
+	user_id: number;
 	username: string;
 	avatar: string;
 }

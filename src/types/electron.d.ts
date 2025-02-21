@@ -1,11 +1,7 @@
 import type {Friend} from "./api";
 
 interface DBOperations {
-	createLoginUser: (params: {
-		server_id: number;
-		username: string;
-		avatar: string;
-	}) => Promise<any>;
+	createLoginUser: (params: {user_id: number; username: string; avatar: string}) => Promise<any>;
 	getCurrentUser: () => Promise<any>;
 	clearLoginUser: () => Promise<boolean>;
 	syncFriends: (friends: Friend[]) => Promise<boolean>;

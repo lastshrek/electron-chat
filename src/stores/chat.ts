@@ -2,11 +2,12 @@ import {defineStore} from "pinia";
 import {ref, computed} from "vue";
 import type {FriendRequestData} from "@/types/ws";
 import {eventBus} from "@/utils/eventBus";
+import {useUserStore} from "@/stores/user";
 
-interface ChatInfo {
+export interface ChatInfo {
 	id: number;
 	name: string | null;
-	type: "DIRECT";
+	type: "DIRECT" | "GROUP";
 	lastMessage?: {
 		id: number;
 		content: string;
@@ -41,46 +42,88 @@ export const useChatStore = defineStore("chat", () => {
 		);
 	});
 
+	const userStore = useUserStore();
+
+	// 从数据库加载聊天列表
+	const loadChats = async () => {
+		if (!window.electron?.db) return;
+
+		try {
+			const dbChats = await window.electron.db.getChats();
+			chats.value = new Map(
+				dbChats.map((chat) => [
+					chat.chat_id,
+					{
+						id: chat.chat_id,
+						name: chat.name,
+						type: chat.type,
+						unreadCount: 0, // 从消息表中计算
+						participants: [], // 从 chat_participants 表中获取
+						lastMessage: undefined, // 从消息表中获取最后一条
+					},
+				])
+			);
+		} catch (error) {
+			console.error("加载聊天列表失败:", error);
+		}
+	};
+
 	// 添加或更新聊天
-	const upsertChat = (chatData: FriendRequestData["data"]["chat"]) => {
-		if (!chatData) return;
+	const upsertChat = async (chatData: FriendRequestData["data"]["chat"]) => {
+		if (!chatData || !window.electron?.db || !userStore.userInfo) return;
 
-		const existingChat = chats.value.get(chatData.id);
-		const participants = chatData.participants.map((p) => ({
-			id: p.user.id,
-			username: p.user.username,
-			avatar: p.user.avatar,
-		}));
+		try {
+			// 保存到数据库
+			await window.electron.db.upsertChat(
+				{
+					chat_id: chatData.id,
+					type: chatData.type,
+					name: chatData.name,
+					participants: chatData.participants.map((p) => ({
+						user_id: p.user.id,
+						username: p.user.username,
+						avatar: p.user.avatar,
+					})),
+				},
+				userStore.userInfo.id
+			);
 
-		chats.value.set(chatData.id, {
-			id: chatData.id,
-			name: chatData.name,
-			type: chatData.type,
-			lastMessage: chatData.lastMessage
-				? {
-						id: chatData.lastMessage.id,
-						content: chatData.lastMessage.content,
-						type: chatData.lastMessage.type,
-						status: chatData.lastMessage.status,
-						timestamp: chatData.lastMessage.createdAt,
-						sender: {
-							id: chatData.lastMessage.sender.id,
-							username: chatData.lastMessage.sender.username,
-							avatar: chatData.lastMessage.sender.avatar,
-						},
-						receiver: {
-							id: chatData.lastMessage.receiver.id,
-							username: chatData.lastMessage.receiver.username,
-							avatar: chatData.lastMessage.receiver.avatar,
-						},
-				  }
-				: undefined,
-			unreadCount: existingChat?.unreadCount || 0,
-			participants,
-		});
+			// 更新内存中的数据
+			const participants = chatData.participants.map((p) => ({
+				id: p.user.id,
+				username: p.user.username,
+				avatar: p.user.avatar,
+			}));
 
-		// 保存到本地存储
-		persistChats();
+			chats.value.set(chatData.id, {
+				id: chatData.id,
+				name: chatData.name,
+				type: chatData.type,
+				participants,
+				unreadCount: 0,
+				lastMessage: chatData.lastMessage
+					? {
+							id: chatData.lastMessage.id,
+							content: chatData.lastMessage.content,
+							type: chatData.lastMessage.type,
+							status: chatData.lastMessage.status,
+							timestamp: chatData.lastMessage.createdAt,
+							sender: {
+								id: chatData.lastMessage.sender.id,
+								username: chatData.lastMessage.sender.username,
+								avatar: chatData.lastMessage.sender.avatar,
+							},
+							receiver: {
+								id: chatData.lastMessage.receiver.id,
+								username: chatData.lastMessage.receiver.username,
+								avatar: chatData.lastMessage.receiver.avatar,
+							},
+					  }
+					: undefined,
+			});
+		} catch (error) {
+			console.error("保存聊天失败:", error);
+		}
 	};
 
 	// 增加未读消息数
@@ -119,7 +162,7 @@ export const useChatStore = defineStore("chat", () => {
 	};
 
 	// 初始化时加载数据
-	loadFromStorage();
+	loadChats();
 
 	// 更新最后一条消息
 	const updateLastMessage = (
@@ -164,5 +207,6 @@ export const useChatStore = defineStore("chat", () => {
 		incrementUnread,
 		clearUnread,
 		updateLastMessage,
+		loadChats,
 	};
 });

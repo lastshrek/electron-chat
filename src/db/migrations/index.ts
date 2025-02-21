@@ -106,6 +106,97 @@ const migrations: Migration[] = [
 			`ALTER TABLE contacts_temp RENAME TO contacts`,
 		],
 	},
+	{
+		version: 4,
+		name: "create_chats_table",
+		up: [
+			// 创建聊天表
+			`CREATE TABLE IF NOT EXISTS chats (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                server_id INTEGER UNIQUE NOT NULL,  -- 服务器聊天ID
+                type TEXT NOT NULL CHECK(type IN ('DIRECT', 'GROUP')),  -- 聊天类型
+                name TEXT,  -- 群聊名称（直接聊天为空）
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )`,
+
+			// 创建聊天参与者表
+			`CREATE TABLE IF NOT EXISTS chat_participants (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,  -- 参与者ID（关联contacts表）
+                role TEXT DEFAULT 'MEMBER' CHECK(role IN ('OWNER', 'ADMIN', 'MEMBER')),
+                joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (chat_id) REFERENCES chats(server_id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES contacts(server_id) ON DELETE CASCADE,
+                UNIQUE(chat_id, user_id)
+            )`,
+
+			// 先将现有的 chat_id 插入到 chats 表
+			`INSERT INTO chats (server_id, type)
+			 SELECT DISTINCT chat_id, 'DIRECT' as type
+			 FROM contacts
+			 WHERE chat_id IS NOT NULL`,
+
+			// 重建 contacts 表以添加外键约束
+			`CREATE TABLE contacts_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                server_id INTEGER UNIQUE NOT NULL,
+                username TEXT NOT NULL,
+                avatar TEXT,
+                chat_id INTEGER DEFAULT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (chat_id) REFERENCES chats(server_id) ON DELETE SET NULL
+            )`,
+
+			// 复制数据
+			`INSERT INTO contacts_new 
+			 SELECT id, server_id, username, avatar, chat_id, created_at, updated_at 
+			 FROM contacts`,
+
+			// 删除旧表
+			`DROP TABLE contacts`,
+
+			// 重命名新表
+			`ALTER TABLE contacts_new RENAME TO contacts`,
+
+			// 创建索引
+			`CREATE INDEX IF NOT EXISTS idx_chats_server_id ON chats(server_id)`,
+			`CREATE INDEX IF NOT EXISTS idx_chat_participants_chat_id ON chat_participants(chat_id)`,
+			`CREATE INDEX IF NOT EXISTS idx_chat_participants_user_id ON chat_participants(user_id)`,
+			`CREATE INDEX IF NOT EXISTS idx_contacts_server_id ON contacts(server_id)`,
+			`CREATE INDEX IF NOT EXISTS idx_contacts_chat_id ON contacts(chat_id)`,
+		],
+		down: [
+			// 删除表和索引
+			`DROP TABLE IF EXISTS chat_participants`,
+			`DROP TABLE IF EXISTS chats`,
+
+			// 重建 contacts 表（不带外键约束）
+			`CREATE TABLE contacts_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                server_id INTEGER UNIQUE NOT NULL,
+                username TEXT NOT NULL,
+                avatar TEXT,
+                chat_id INTEGER DEFAULT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )`,
+
+			`INSERT INTO contacts_new 
+			 SELECT id, server_id, username, avatar, chat_id, created_at, updated_at 
+			 FROM contacts`,
+
+			`DROP TABLE contacts`,
+
+			`ALTER TABLE contacts_new RENAME TO contacts`,
+
+			// 重建索引
+			`CREATE INDEX IF NOT EXISTS idx_contacts_server_id ON contacts(server_id)`,
+			`CREATE INDEX IF NOT EXISTS idx_contacts_chat_id ON contacts(chat_id)`,
+		],
+	},
 ];
 
 export class DBMigration {
