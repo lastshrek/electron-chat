@@ -2,14 +2,14 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:12:22
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-21 21:40:37
+ * @LastEditTime : 2025-02-21 23:11:28
  * @FilePath     : /src/stores/user.ts
  * @Description  : user store
  * Copyright 2025 lastshrek, All Rights Reserved.
  * 2025-02-19 19:12:22
  */
 import {defineStore} from "pinia";
-import {ref} from "vue";
+import {ref, computed} from "vue";
 import {authApi} from "@/api/auth";
 import type {UserInfo, LoginParams, LoginResponse} from "@/types/api";
 import {useChatStore} from "./chat";
@@ -21,14 +21,17 @@ const TOKEN_KEY = "token";
 const USER_INFO_KEY = "user_info";
 
 export const useUserStore = defineStore("user", () => {
-	const isAuthenticated = ref(false);
+	const isAuthenticated = computed(() => {
+		// 检查 token 和 userInfo 是否都存在
+		return !!token.value && !!userInfo.value;
+	});
+
 	const token = ref<string | null>(null);
 	const userInfo = ref<UserInfo | null>(null);
 	const router = useRouter();
 
 	const setToken = (newToken: string | null) => {
 		token.value = newToken;
-		isAuthenticated.value = !!newToken;
 		if (newToken) {
 			localStorage.setItem(TOKEN_KEY, newToken);
 		} else {
@@ -71,6 +74,7 @@ export const useUserStore = defineStore("user", () => {
 	};
 
 	const initAuth = () => {
+		// 从 localStorage 获取 token
 		const savedToken = localStorage.getItem(TOKEN_KEY);
 		if (savedToken) {
 			setToken(savedToken);
@@ -96,7 +100,6 @@ export const useUserStore = defineStore("user", () => {
 		} finally {
 			setToken(null);
 			setUserInfo(null);
-			isAuthenticated.value = false;
 
 			// 清空本地存储
 			localStorage.removeItem("token");
@@ -156,9 +159,32 @@ export const useUserStore = defineStore("user", () => {
 				console.error("保存用户信息或同步好友列表失败:", error);
 			}
 
+			// 这里应该初始化 socket 连接
+			useChatStore().initSocket();
+
 			return true;
 		} catch (error) {
 			console.error("登录失败:", error);
+			return false;
+		}
+	};
+
+	const restoreFromDB = async () => {
+		try {
+			const currentUser = await window.electron.db.getCurrentUser();
+			if (currentUser) {
+				// 从本地存储获取 token
+				const savedToken = localStorage.getItem(TOKEN_KEY);
+				console.log("savedToken", savedToken);
+				if (savedToken) {
+					setToken(savedToken);
+				}
+				setUserInfo(currentUser);
+				return true;
+			}
+			return false;
+		} catch (error) {
+			console.error("从数据库恢复用户状态失败:", error);
 			return false;
 		}
 	};
@@ -173,5 +199,6 @@ export const useUserStore = defineStore("user", () => {
 		logout,
 		updateUserInfo,
 		login,
+		restoreFromDB,
 	};
 });

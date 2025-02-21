@@ -53,11 +53,25 @@ export class FriendshipsDAL {
 		}>
 	): Promise<boolean> {
 		const db = getDB();
-		console.log("开始同步好友关系, userId:", userId);
+
+		// 根据传入的 userId 查询登录用户信息
+		const loginUserStmt = db.prepare(`
+			SELECT * FROM login_user WHERE id = ?
+		`);
+		const loginUser = loginUserStmt.get(userId);
+
+		if (!loginUser) {
+			throw new Error(`User ${userId} not found in login_user table`);
+		}
+
+		// 使用 user_id 而不是 id
+		const actualUserId = loginUser.user_id;
+
+		console.log("开始同步好友关系, userId:", actualUserId);
 		console.log("接收到的好友数据:", friends.length, "条");
 
 		// 确保 userId 是整数
-		userId = Math.floor(userId);
+		const userIdInt = Math.floor(actualUserId);
 
 		// 获取新好友的 ID 列表
 		const newFriendIds = friends.map((f) => Math.floor(f.friend.id)).filter((id) => id);
@@ -67,35 +81,46 @@ export class FriendshipsDAL {
 		try {
 			// 1. 先创建/更新联系人记录
 			const upsertContactStmt = db.prepare(`
-                INSERT INTO contacts 
-                (user_id, username, avatar, chat_id)
-                VALUES (?, ?, ?, NULL)
-                ON CONFLICT(user_id) DO UPDATE SET
-                username = excluded.username,
-                avatar = excluded.avatar,
-                updated_at = CURRENT_TIMESTAMP
-            `);
+				INSERT INTO contacts 
+				(user_id, username, avatar, chat_id)
+				VALUES (?, ?, ?, NULL)
+				ON CONFLICT(user_id) DO UPDATE SET
+				username = excluded.username,
+				avatar = excluded.avatar
+			`);
 
 			// 2. 创建聊天记录
 			const chatStmt = db.prepare(`
-                INSERT OR IGNORE INTO chats 
-                (chat_id, type, name)
-                VALUES (?, 'DIRECT', NULL)
-            `);
+				INSERT OR IGNORE INTO chats 
+				(chat_id, type, name)
+				VALUES (?, 'DIRECT', NULL)
+			`);
 
 			// 3. 更新联系人的 chat_id
 			const updateContactChatStmt = db.prepare(`
-                UPDATE contacts
-                SET chat_id = ?
-                WHERE user_id = ?
-            `);
+				UPDATE contacts
+				SET chat_id = ?
+				WHERE user_id = ?
+			`);
 
 			// 添加聊天参与者
 			const addParticipantStmt = db.prepare(`
-                INSERT OR IGNORE INTO chat_participants
-                (chat_id, user_id, role)
-                VALUES (?, ?, 'MEMBER')
-            `);
+				INSERT OR IGNORE INTO chat_participants
+				(chat_id, user_id, role)
+				VALUES (?, ?, 'MEMBER')
+			`);
+
+			// 检查聊天是否存在且是单聊
+			const checkChatExistsStmt = db.prepare(`
+				SELECT 1 FROM chats 
+				WHERE chat_id = ? AND type = 'DIRECT'
+			`);
+
+			// 检查聊天参与者是否存在
+			const checkParticipantExistsStmt = db.prepare(`
+				SELECT 1 FROM chat_participants
+				WHERE chat_id = ? AND user_id = ?
+			`);
 
 			// 处理每个好友的数据
 			for (const {friend} of friends) {
@@ -111,43 +136,51 @@ export class FriendshipsDAL {
 				// 1. 先创建联系人记录
 				upsertContactStmt.run(friendId, friend.username, friend.avatar || null);
 
-				// 2. 创建聊天记录
-				chatStmt.run(chatId);
+				// 2. 只在聊天不存在时创建聊天记录
+				const chatExists = checkChatExistsStmt.get(chatId);
+				if (!chatExists) {
+					chatStmt.run(chatId);
+				}
 
 				// 3. 更新联系人的 chat_id
 				updateContactChatStmt.run(chatId, friendId);
 
-				// 4. 添加聊天参与者（当前用户和好友）
-				addParticipantStmt.run(chatId, userId); // 添加当前用户
-				addParticipantStmt.run(chatId, friendId); // 添加好友
+				// 4. 只在参与者不存在时添加聊天参与者
+				const currentUserExists = checkParticipantExistsStmt.get(chatId, userIdInt);
+				const friendExists = checkParticipantExistsStmt.get(chatId, friendId);
+
+				if (!currentUserExists) {
+					addParticipantStmt.run(chatId, userIdInt); // 添加当前用户
+				}
+				if (!friendExists) {
+					addParticipantStmt.run(chatId, friendId); // 添加好友
+				}
 			}
 
 			// 4. 删除不再是好友的记录
 			if (newFriendIds.length > 0) {
 				const placeholders = newFriendIds.map(() => "?").join(",");
 				const deleteFriendshipsStmt = db.prepare(`
-                    DELETE FROM ${this.tableName}
-                    WHERE user_id = ?
-                    AND friend_id NOT IN (${placeholders})
-                `);
-				deleteFriendshipsStmt.run(userId, ...newFriendIds);
+					DELETE FROM ${this.tableName}
+					WHERE user_id = ?
+					AND friend_id NOT IN (${placeholders})
+				`);
+				deleteFriendshipsStmt.run(userIdInt, ...newFriendIds);
 			}
 
 			// 5. 创建或更新好友关系
 			const upsertFriendshipStmt = db.prepare(`
-                INSERT INTO ${this.tableName}
-                (user_id, friend_id, created_at)
-                VALUES (?, ?, CURRENT_TIMESTAMP)
-                ON CONFLICT(user_id, friend_id) DO UPDATE SET
-                updated_at = CURRENT_TIMESTAMP
-            `);
+				INSERT INTO ${this.tableName}
+				(user_id, friend_id, created_at)
+				VALUES (?, ?, CURRENT_TIMESTAMP)
+				ON CONFLICT(user_id, friend_id) DO UPDATE SET
+				updated_at = CURRENT_TIMESTAMP
+			`);
 
 			for (const {friend} of friends) {
 				if (!friend.id) continue;
 				const friendId = Math.floor(friend.id);
-				// 确保 user_id 总是较小的 ID，friend_id 总是较大的 ID
-				const [smallerId, biggerId] = [userId, friendId].sort((a, b) => a - b);
-				upsertFriendshipStmt.run(smallerId, biggerId);
+				upsertFriendshipStmt.run(userIdInt, friendId);
 			}
 
 			db.exec("COMMIT");

@@ -56,7 +56,7 @@ export class LoginUserDAL {
 
 		const result = stmt.get();
 		if (result) {
-			console.log("当前登录用户查询结果:", result.username);
+			console.log("当前登录用户查询结果:", result);
 		}
 		return result as LoginUser | undefined;
 	}

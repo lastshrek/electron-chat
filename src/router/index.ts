@@ -8,11 +8,11 @@
  * Copyright 2025 lastshrek, All Rights Reserved.
  * 2025-02-19 19:28:07
  */
-import {createRouter, createWebHistory} from "vue-router";
+import {createRouter, createWebHashHistory} from "vue-router";
 import {useUserStore} from "@/stores/user";
 
 const router = createRouter({
-	history: createWebHistory(),
+	history: createWebHashHistory(),
 	routes: [
 		{
 			path: "/",
@@ -58,26 +58,26 @@ const router = createRouter({
 	],
 });
 
-// 全局路由守卫
+// 路由守卫
 router.beforeEach((to, from, next) => {
 	const userStore = useUserStore();
-	const isAuthenticated = userStore.isAuthenticated;
 
-	// 需要认证的路由
-	if (to.meta.requiresAuth && !isAuthenticated) {
-		console.log("未登录，重定向到登录页");
+	// 打印当前认证状态
+	console.log("路由守卫 - 认证状态:", {
+		isAuthenticated: userStore.isAuthenticated,
+		token: userStore.token,
+		requiresAuth: to.meta.requiresAuth,
+	});
+
+	if (to.meta.requiresAuth && !userStore.isAuthenticated) {
+		// 需要认证但未登录，重定向到登录页
 		next({name: "login"});
-		return;
-	}
-
-	// 已登录用户访问登录/注册页面
-	if ((to.name === "login" || to.name === "register") && isAuthenticated) {
-		console.log("已登录，重定向到首页");
+	} else if (to.name === "login" && userStore.isAuthenticated) {
+		// 已登录但访问登录页，重定向到首页
 		next({name: "home"});
-		return;
+	} else {
+		next();
 	}
-
-	next();
 });
 
 export default router;

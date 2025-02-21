@@ -276,44 +276,50 @@ const messageList = ref<HTMLElement | null>(null);
 const typingUsers = ref<number[]>([]);
 const typingManager = ref<ChatTypingManager>();
 
-// 缓存聊天参与者数据
-const participantsCache = ref(new Map<number, Array<{
+// 修改类型定义
+interface ChatParticipant {
 	chat_id: number;
 	user_id: number;
 	role: string;
 	username: string;
 	avatar: string;
-}>>());
+	id: number; // 添加 id 字段
+}
 
-// 存储其他参与者信息的响应式对象
-const otherParticipants = ref(new Map<number, {
+interface OtherParticipant {
 	username: string;
 	avatar: string;
 	user_id: number;
 	chat_id: number;
 	friendship_id?: number;
 	friend_since?: string;
-}>());
+	id: number; // 添加 id 字段
+}
 
-// 获取对话的另一方信息
+// 修改参与者缓存的类型
+const participantsCache = ref(new Map<number, Array<ChatParticipant>>());
+
+// 修改其他参与者信息的类型
+const otherParticipants = ref(new Map<number, OtherParticipant>());
+
+// 修改获取其他参与者的方法
 const getOtherParticipant = async (chat: ChatInfo) => {
-	if (!window.electron?.db) return null;
+	if (!window.electron?.ipcRenderer) return null;
 	
 	try {
-		// 先检查缓存
 		if (!participantsCache.value.has(chat.id)) {
 			console.log(TAG, '从数据库获取聊天参与者:', chat.id);
-			const participants = await window.electron.db.getChatParticipants(chat.id);
+			const participants = await window.electron.ipcRenderer.invoke('db:getChatParticipants', chat.id);
 			participantsCache.value.set(chat.id, participants);
 			
-			// 找到非当前用户的参与者并更新 otherParticipants
 			const otherParticipant = participants.find(p => p.user_id !== userStore.userInfo?.id);
 			if (otherParticipant) {
 				otherParticipants.value.set(chat.id, {
 					username: otherParticipant.username,
 					avatar: otherParticipant.avatar,
 					user_id: otherParticipant.user_id,
-					server_id: otherParticipant.server_id,
+					chat_id: otherParticipant.chat_id,
+					id: otherParticipant.id,
 					friendship_id: otherParticipant.friendship_id,
 					friend_since: otherParticipant.friend_since
 				});
@@ -442,15 +448,26 @@ const formatTime = (timestamp: string) => {
 	})
 }
 
+// 修改发送消息的方法
 const sendMessage = async () => {
 	if (!message.value.trim() || !selectedChat.value) return;
 
-	// 先停止输入状态
 	handleStopTyping();
 	console.log(TAG, '发送消息:', selectedChat.value);
+	
+	const otherParticipant = await getOtherParticipant(selectedChat.value);
+	if (!otherParticipant) {
+		toast({
+			variant: "destructive",
+			title: "发送失败",
+			description: "找不到聊天对象",
+		});
+		return;
+	}
+
 	const success = await messageService.sendTextMessage(
 		selectedChat.value.id,
-		getOtherParticipant(selectedChat.value)!.id,
+		otherParticipant.user_id,
 		message.value
 	);
 
@@ -465,32 +482,42 @@ const sendMessage = async () => {
 	}
 };
 
-// 移除输入框的 @blur 事件，改为监听 focusout
+// 修改 handleFocusOut 的类型
 const handleFocusOut = (event: FocusEvent) => {
-	// 如果是点击发送按钮导致的失焦，不触发停止输入
-	if (event.relatedTarget?.closest('button')?.textContent?.trim() === '发送') {
+	const target = event.relatedTarget as HTMLElement | null;
+	if (target?.closest('button')?.textContent?.trim() === '发送') {
 		return;
 	}
 	handleStopTyping();
 };
 
-// 处理文件上传
+// 修改文件上传方法
 const handleFileUpload = async (event: Event) => {
 	const input = event.target as HTMLInputElement;
 	const file = input.files?.[0];
 	if (!file || !selectedChat.value) return;
 
+	const otherParticipant = await getOtherParticipant(selectedChat.value);
+	if (!otherParticipant) {
+		toast({
+			variant: "destructive",
+			title: "发送失败",
+			description: "找不到聊天对象",
+		});
+		return;
+	}
+
 	let success = false;
 	if (file.type.startsWith("image/")) {
 		success = await messageService.sendImageMessage(
 			selectedChat.value.id,
-			getOtherParticipant(selectedChat.value)!.id,
+			otherParticipant.user_id,
 			file
 		);
 	} else {
 		success = await messageService.sendFileMessage(
 			selectedChat.value.id,
-			getOtherParticipant(selectedChat.value)!.id,
+			otherParticipant.user_id,
 			file
 		);
 	}
