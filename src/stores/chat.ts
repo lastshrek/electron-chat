@@ -38,6 +38,7 @@ export const useChatStore = defineStore("chat", {
 	state: () => ({
 		socket: null as any,
 		connected: false,
+		chats: new Map<number, ChatInfo>(),
 	}),
 
 	actions: {
@@ -96,6 +97,35 @@ export const useChatStore = defineStore("chat", {
 				this.socket.disconnect();
 				this.socket = null;
 				this.connected = false;
+			}
+		},
+
+		setChat(chat: ChatInfo) {
+			this.chats.set(chat.id, chat);
+		},
+
+		removeChat(chatId: number) {
+			this.chats.delete(chatId);
+		},
+
+		clearUnread(chatId: number) {
+			const chat = this.chats.get(chatId);
+			if (chat) {
+				chat.unreadCount = 0;
+			}
+		},
+
+		updateLastMessage(chatId: number, message: ChatInfo["lastMessage"]) {
+			const chat = this.chats.get(chatId);
+			if (chat) {
+				chat.lastMessage = message;
+			}
+		},
+
+		incrementUnread(chatId: number) {
+			const chat = this.chats.get(chatId);
+			if (chat) {
+				chat.unreadCount++;
 			}
 		},
 	},

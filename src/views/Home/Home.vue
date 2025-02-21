@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:28:39
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-21 21:43:35
+ * @LastEditTime : 2025-02-21 23:33:50
  * @FilePath     : /src/views/Home/Home.vue
  * @Description  : 
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -341,10 +341,15 @@ const loadAllParticipants = async () => {
 };
 
 // 监听聊天列表变化
-watch(() => chats.value.size, async () => {
-	clearParticipantCache();
-	await loadAllParticipants();
-});
+watch(
+	() => chats.value,
+	async (newChats) => {
+		if (!newChats) return;
+		clearParticipantCache();
+		await loadAllParticipants();
+	},
+	{ deep: true }
+);
 
 // 在组件挂载时加载参与者信息
 onMounted(loadAllParticipants);
