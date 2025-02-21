@@ -119,8 +119,25 @@ const setupIPCHandlers = () => {
 	// 获取好友列表
 	ipcMain.handle("db:getFriends", async (event, userId) => {
 		try {
-			const friends = FriendshipsDAL.findByUserId(userId);
-			console.log("获取好友列表成功:", friends);
+			const db = getDB();
+			const stmt = db.prepare(`
+				SELECT 
+					f.id,
+					f.created_at as createdAt,
+					f.user_id as userId,
+					f.friend_id as friendId,
+					c.username as friendUsername,
+					c.avatar as friendAvatar,
+					c.chat_id as chatId
+				FROM friendships f
+				LEFT JOIN contacts c ON f.friend_id = c.user_id
+				WHERE f.user_id = ?
+				ORDER BY f.created_at DESC
+			`);
+
+			console.log("获取好友列表，用户ID:", userId);
+			const friends = stmt.all(userId);
+			console.log("查询到的好友列表:", friends);
 			return friends;
 		} catch (error) {
 			console.error("获取好友列表失败:", error);
@@ -167,61 +184,47 @@ const setupIPCHandlers = () => {
 	ipcMain.handle("db:getChats", async () => {
 		try {
 			const db = getDB();
-
-			// 获取当前用户
 			const currentUser = LoginUserDAL.getCurrentUser();
-			if (!currentUser) {
-				throw new Error("未找到当前登录用户");
-			}
-			console.log("当前用户:", currentUser);
 
-			// 1. 获取所有聊天
-			const chatsStmt = db.prepare(`
-				SELECT DISTINCT
-					c.chat_id,
+			if (!currentUser) {
+				console.warn("未找到当前登录用户");
+				return [];
+			}
+
+			console.log("开始获取聊天列表，当前用户:", currentUser);
+
+			const stmt = db.prepare(`
+				SELECT 
+					c.chat_id as id,
+					c.name,
 					c.type,
-					CASE 
-						WHEN c.type = 'GROUP' THEN c.name
-						ELSE NULL
-					END as name,
-					c.created_at,
-					c.updated_at
+					(
+						SELECT json_group_array(
+							json_object(
+								'id', p.user_id,
+								'username', ct.username,
+								'avatar', ct.avatar
+							)
+						)
+						FROM chat_participants p
+						LEFT JOIN contacts ct ON p.user_id = ct.user_id
+						WHERE p.chat_id = c.chat_id
+					) as participants
 				FROM chats c
 				JOIN chat_participants cp ON c.chat_id = cp.chat_id
 				WHERE cp.user_id = ?
 			`);
 
-			// 先打印 SQL 参数
-			console.log("查询聊天列表SQL参数:", currentUser.user_id);
+			const chats = stmt.all(currentUser.user_id);
+			console.log("查询到的原始聊天列表:", chats);
 
-			const chats = chatsStmt.all(currentUser.user_id);
-			console.log("查询到的聊天原始数据:", chats);
+			const processedChats = chats.map((chat) => ({
+				...chat,
+				participants: JSON.parse(chat.participants),
+			}));
+			console.log("处理后的聊天列表:", processedChats);
 
-			// 2. 为每个聊天获取参与者
-			const participantsStmt = db.prepare(`
-				SELECT 
-					cp.user_id,
-					co.username,
-					co.avatar,
-					cp.role
-				FROM chat_participants cp
-				JOIN contacts co ON cp.user_id = co.user_id
-				WHERE cp.chat_id = ? AND cp.user_id != ?
-			`);
-
-			// 3. 组合数据并打印每个聊天的参与者
-			const result = chats.map((chat) => {
-				const participants = participantsStmt.all(chat.chat_id, currentUser.user_id);
-				console.log(`聊天 ${chat.chat_id} 的参与者:`, participants);
-				return {
-					...chat,
-					participants,
-				};
-			});
-
-			// 打印最终结果
-			console.log("最终的聊天列表数据:", JSON.stringify(result, null, 2));
-			return result;
+			return processedChats;
 		} catch (error) {
 			console.error("获取聊天列表失败:", error);
 			throw error;
@@ -312,7 +315,7 @@ const setupIPCHandlers = () => {
 				SELECT * FROM chats WHERE chat_id = ?
 			`);
 			const chat = chatStmt.get(chatId);
-			console.log("聊天信息:", chat);
+			console.log("聊天信息:", chat.chat_id);
 
 			if (!chat) {
 				throw new Error("聊天不存在");
@@ -341,7 +344,7 @@ const setupIPCHandlers = () => {
 				currentUser.user_id
 			);
 
-			console.log("聊天参与者查询结果:", results);
+			console.log("聊天参与者查询结果:", results[0].username);
 			return results;
 		} catch (error) {
 			console.error("获取聊天参与者失败:", error);

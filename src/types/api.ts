@@ -2,8 +2,8 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 00:21:30
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-19 00:21:32
- * @FilePath     : /src/renderer/types/api.ts
+ * @LastEditTime : 2025-02-22 00:09:44
+ * @FilePath     : /src/types/api.ts
  * @Description  :
  * Copyright 2025 lastshrek, All Rights Reserved.
  * 2025-02-19 00:21:30
@@ -31,6 +31,7 @@ export interface LoginResponse {
 // 用户信息
 export interface UserInfo {
 	id: number;
+	user_id: number;
 	username: string;
 	avatar: string;
 	createdAt: string;

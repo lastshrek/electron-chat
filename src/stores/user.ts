@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:12:22
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-21 23:11:28
+ * @LastEditTime : 2025-02-22 00:09:19
  * @FilePath     : /src/stores/user.ts
  * @Description  : user store
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -172,10 +172,10 @@ export const useUserStore = defineStore("user", () => {
 	const restoreFromDB = async () => {
 		try {
 			const currentUser = await window.electron.db.getCurrentUser();
+			console.log("从数据库恢复用户状态:", currentUser);
 			if (currentUser) {
 				// 从本地存储获取 token
 				const savedToken = localStorage.getItem(TOKEN_KEY);
-				console.log("savedToken", savedToken);
 				if (savedToken) {
 					setToken(savedToken);
 				}

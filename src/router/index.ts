@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:28:07
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-19 20:37:51
+ * @LastEditTime : 2025-02-21 23:41:12
  * @FilePath     : /src/router/index.ts
  * @Description  : router index
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -61,13 +61,6 @@ const router = createRouter({
 // 路由守卫
 router.beforeEach((to, from, next) => {
 	const userStore = useUserStore();
-
-	// 打印当前认证状态
-	console.log("路由守卫 - 认证状态:", {
-		isAuthenticated: userStore.isAuthenticated,
-		token: userStore.token,
-		requiresAuth: to.meta.requiresAuth,
-	});
 
 	if (to.meta.requiresAuth && !userStore.isAuthenticated) {
 		// 需要认证但未登录，重定向到登录页

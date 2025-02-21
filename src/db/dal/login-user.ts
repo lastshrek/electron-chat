@@ -46,7 +46,6 @@ export class LoginUserDAL {
 
 	static getCurrentUser(): LoginUser | undefined {
 		const db = getDB();
-		console.log("正在获取当前登录用户");
 
 		// 不需要按时间排序，因为应该只有一条记录
 		const stmt = db.prepare(`
@@ -56,7 +55,7 @@ export class LoginUserDAL {
 
 		const result = stmt.get();
 		if (result) {
-			console.log("当前登录用户查询结果:", result);
+			console.log("当前登录用户查询结果:", result.username);
 		}
 		return result as LoginUser | undefined;
 	}

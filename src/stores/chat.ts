@@ -39,12 +39,12 @@ export const useChatStore = defineStore("chat", {
 		socket: null as any,
 		connected: false,
 		chats: new Map<number, ChatInfo>(),
+		initialized: false,
 	}),
 
 	actions: {
 		initSocket() {
 			const userStore = useUserStore();
-			console.log("userStore.token", userStore.token);
 			if (!userStore.token) {
 				console.warn("未登录，无法初始化 socket");
 				return;
@@ -126,6 +126,60 @@ export const useChatStore = defineStore("chat", {
 			const chat = this.chats.get(chatId);
 			if (chat) {
 				chat.unreadCount++;
+			}
+		},
+
+		async initialize() {
+			console.log("开始初始化聊天 store");
+			if (this.initialized) {
+				console.log("聊天 store 已经初始化过");
+				return;
+			}
+
+			try {
+				await this.loadChats();
+				this.initialized = true;
+				console.log("聊天 store 初始化完成");
+			} catch (error) {
+				console.error("聊天 store 初始化失败:", error);
+				throw error;
+			}
+		},
+
+		async loadChats() {
+			if (!window.electron?.ipcRenderer) return;
+
+			try {
+				// 先获取当前登录用户
+				const currentUser = await window.electron.ipcRenderer.invoke("db:getCurrentUser");
+				if (!currentUser) {
+					console.warn("未找到当前登录用户，跳过加载聊天列表");
+					return;
+				}
+				console.log("当前登录用户:", currentUser);
+
+				console.log("开始加载聊天列表");
+				const chats = await window.electron.ipcRenderer.invoke("db:getChats");
+				console.log("获取到的聊天列表:", chats);
+
+				if (!chats || chats.length === 0) {
+					console.warn("未获取到任何聊天");
+					return;
+				}
+
+				// 清空现有聊天列表
+				this.chats.clear();
+
+				// 添加新的聊天
+				for (const chat of chats) {
+					console.log("添加聊天:", chat);
+					this.setChat(chat);
+				}
+
+				console.log("聊天列表加载完成，数量:", this.chats.size);
+			} catch (error) {
+				console.error("加载聊天列表失败:", error);
+				throw error;
 			}
 		},
 	},

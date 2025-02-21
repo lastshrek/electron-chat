@@ -15,14 +15,15 @@ interface DBOperations {
 	getCurrentUser: () => Promise<any>;
 	syncFriends: (friends: Friend[], userId: number) => Promise<boolean>;
 	getFriends: (userId: number) => Promise<
-		{
+		Array<{
 			id: number;
 			createdAt: string;
 			userId: number;
 			friendId: number;
 			friendUsername: string;
 			friendAvatar: string;
-		}[]
+			chatId: number;
+		}>
 	>;
 	getChats: () => Promise<
 		Array<{
@@ -62,6 +63,11 @@ export interface ElectronAPI {
 	on: (channel: string, callback: Function) => void;
 	removeAllListeners: (channel: string) => void;
 	db: DBOperations;
+	ipcRenderer: {
+		invoke: (channel: string, ...args: any[]) => void;
+		on: (channel: string, callback: Function) => void;
+		off: (channel: string, callback: Function) => void;
+	};
 }
 
 // 声明全局 window 类型
@@ -181,7 +187,7 @@ const api: ElectronAPI = {
 		ipcRenderer.send(channel, data);
 	},
 	on: (channel: string, callback: Function) => {
-		ipcRenderer.on(channel, (_, data) => callback(data));
+		ipcRenderer.on(channel, (_, ...args) => callback(...args));
 	},
 	removeAllListeners: (channel: string) => {
 		ipcRenderer.removeAllListeners(channel);
@@ -195,6 +201,15 @@ const api: ElectronAPI = {
 		upsertChat: (chat: any) => ipcRenderer.invoke("db:upsertChat", chat),
 		getChatParticipants: (chatId: number) =>
 			ipcRenderer.invoke("db:getChatParticipants", chatId),
+	},
+	ipcRenderer: {
+		invoke: (channel: string, ...args: any[]) => ipcRenderer.invoke(channel, ...args),
+		on: (channel: string, callback: Function) => {
+			ipcRenderer.on(channel, (_, ...args) => callback(...args));
+		},
+		off: (channel: string, callback: Function) => {
+			ipcRenderer.removeListener(channel, callback);
+		},
 	},
 };
 

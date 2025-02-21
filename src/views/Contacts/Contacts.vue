@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:08:47
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-21 19:37:01
+ * @LastEditTime : 2025-02-22 00:26:20
  * @FilePath     : /src/views/Contacts/Contacts.vue
  * @Description  : Contacts page
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -313,37 +313,39 @@ const initFriendRequests = async () => {
 const getFriendsList = async () => {
 	try {
 		if (!userStore.userInfo?.id) {
-			console.error("用户ID不存在")
-			return
+			console.error("用户ID不存在");
+			return;
 		}
 
-		const friendsList = await window.electron.db.getFriends(userStore.userInfo.id)
-		console.log("获取好友列表成功:", friendsList)
+		console.log("开始获取好友列表，用户ID:", userStore.userInfo.user_id);
+		const friendsList = await window.electron.ipcRenderer.invoke("db:getFriends", userStore.userInfo.user_id);
+		console.log("获取好友列表成功:", friendsList);
 
 		// 更新联系人分组数据
-		const contactsGroup = contactGroups.value.find(g => g.id === 'contacts')
+		const contactsGroup = contactGroups.value.find(g => g.id === 'contacts');
 		if (contactsGroup) {
-			contactsGroup.count = friendsList.length
-			// 更新好友列表项，不包含加入时间
+			contactsGroup.count = friendsList.length;
+			// 更新好友列表项
 			contactsGroup.items = friendsList.map(friend => ({
 				id: friend.friendId,
 				name: friend.friendUsername,
 				avatar: friend.friendAvatar,
+				description: `好友添加时间：${formatDate(friend.createdAt)}`,
 				chatId: friend.chatId
-			}))
+			}));
 		}
 
 		// 保存原始好友数据
-		friends.value = friendsList
+		friends.value = friendsList;
 	} catch (error) {
-		console.error("获取好友列表失败:", error)
+		console.error("获取好友列表失败:", error);
 		toast({
 			variant: 'destructive',
 			title: '获取好友列表失败',
 			description: '请稍后重试'
-		})
+		});
 	}
-}
+};
 
 onMounted(async () => {
 	// 初始化好友请求列表

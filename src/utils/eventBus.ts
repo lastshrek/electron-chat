@@ -39,6 +39,7 @@ type Events = {
 	};
 	"clear-friend-request-count": void;
 	"unread-count-updated": number;
+	friendsSynced: void;
 };
 
 export const eventBus = mitt<Events>();

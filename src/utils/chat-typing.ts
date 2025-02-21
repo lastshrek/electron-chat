@@ -60,7 +60,6 @@ export class ChatTypingManager extends EventEmitter {
 	}
 
 	private setTypingStatus(chatId: number, userId: number, typing: boolean) {
-		console.log("设置输入状态:", {chatId, userId, typing});
 		const key = `${chatId}-${userId}`;
 		this.typingUsers.set(key, {
 			userId,

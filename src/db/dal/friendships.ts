@@ -1,6 +1,8 @@
 import {getDB} from "../index";
 import type {Friendship, FriendWithDetails} from "../entities";
 import {LoginUserDAL} from "./login-user";
+import {eventBus} from "../../utils/eventBus";
+import {BrowserWindow} from "electron";
 
 export class FriendshipsDAL {
 	static tableName = "friendships";
@@ -124,7 +126,7 @@ export class FriendshipsDAL {
 
 			// 处理每个好友的数据
 			for (const {friend} of friends) {
-				console.log("处理好友数据:", friend);
+				console.log("处理好友数据:", friend.username);
 				if (!friend.id || !friend.username || !friend.chatId) {
 					console.warn("跳过无效的好友数据:", friend);
 					continue;
@@ -184,6 +186,12 @@ export class FriendshipsDAL {
 			}
 
 			db.exec("COMMIT");
+			console.log("好友同步完成，触发事件");
+			// 使用 IPC 发送事件
+			const mainWindow = BrowserWindow.getFocusedWindow();
+			if (mainWindow) {
+				mainWindow.webContents.send("friendsSynced");
+			}
 			return true;
 		} catch (error) {
 			console.error("同步好友关系失败:", error);

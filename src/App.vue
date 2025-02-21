@@ -12,6 +12,7 @@ import {useUserStore} from "@/stores/user";
 import {useChatStore} from "./stores/chat";
 import Toaster from '@/components/ui/toast/Toaster.vue'
 import {wsService} from "@/services/ws";
+import {eventBus} from "@/utils/eventBus";
 // import {electronAPI} from "@/electron";
 
 console.log("[App.vue]", `Hello world from Electron!`);
@@ -47,5 +48,32 @@ onUnmounted(() => {
 		console.error('断开连接失败:', error)
 	}
 })
+
+// 在好友同步完成后初始化聊天
+const initializeChat = async () => {
+	try {
+		const chatStore = useChatStore();
+		await chatStore.initialize();
+	} catch (error) {
+		console.error("初始化聊天失败:", error);
+	}
+};
+
+// 监听好友同步完成事件
+onMounted(() => {
+	if (window.electron?.ipcRenderer) {
+		window.electron.ipcRenderer.on('friendsSynced', async () => {
+			console.log("收到好友同步完成事件");
+			await initializeChat();
+		});
+	}
+});
+
+// 清理事件监听
+onUnmounted(() => {
+	if (window.electron?.ipcRenderer) {
+		window.electron.ipcRenderer.off('friendsSynced');
+	}
+});
 </script>
 

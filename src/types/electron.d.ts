@@ -22,6 +22,11 @@ export interface ElectronAPI {
 	send: (channel: string, data: any) => void;
 	on: (channel: string, callback: Function) => void;
 	db: DBOperations;
+	ipcRenderer: {
+		invoke: (channel: string, ...args: any[]) => Promise<any>;
+		on: (channel: string, callback: Function) => void;
+		off: (channel: string, callback: Function) => void;
+	};
 }
 
 declare global {

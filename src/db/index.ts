@@ -39,7 +39,7 @@ const initDatabase = () => {
 		console.log("正在创建数据库连接...");
 		const db = new Database(dbPath, {
 			verbose: (message: string) => {
-				console.log("SQLite操作:", message);
+				// console.log("SQLite操作:", message.slice(0, 20));
 			},
 		});
 

@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:28:39
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-21 23:33:50
+ * @LastEditTime : 2025-02-22 00:26:06
  * @FilePath     : /src/views/Home/Home.vue
  * @Description  : 
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -308,11 +308,11 @@ const getOtherParticipant = async (chat: ChatInfo) => {
 	
 	try {
 		if (!participantsCache.value.has(chat.id)) {
-			console.log(TAG, '从数据库获取聊天参与者:', chat.id);
 			const participants = await window.electron.ipcRenderer.invoke('db:getChatParticipants', chat.id);
 			participantsCache.value.set(chat.id, participants);
-			
-			const otherParticipant = participants.find(p => p.user_id !== userStore.userInfo?.id);
+
+			const otherParticipant = participants.find(p => p.user_id !== userStore.userInfo?.user_id);
+			console.log(TAG, '获取聊天参与者:', otherParticipant);
 			if (otherParticipant) {
 				otherParticipants.value.set(chat.id, {
 					username: otherParticipant.username,
@@ -344,7 +344,7 @@ const loadAllParticipants = async () => {
 watch(
 	() => chats.value,
 	async (newChats) => {
-		if (!newChats) return;
+		if (!newChats || !chatStore.initialized) return;
 		clearParticipantCache();
 		await loadAllParticipants();
 	},
@@ -352,7 +352,29 @@ watch(
 );
 
 // 在组件挂载时加载参与者信息
-onMounted(loadAllParticipants);
+onMounted(async () => {
+	console.log("Home 组件挂载");
+	// 如果已经初始化过了，才加载参与者信息
+	if (chatStore.initialized) {
+		console.log("开始加载参与者信息");
+		await loadAllParticipants();
+		
+		if (selectedChat.value) {
+			chatStore.clearUnread(selectedChat.value.id);
+		}
+	}
+});
+
+// 监听聊天初始化完成
+watch(
+	() => chatStore.initialized,
+	async (newValue) => {
+		if (newValue) {
+			console.log("聊天初始化完成，开始加载参与者信息");
+			await loadAllParticipants();
+		}
+	}
+);
 
 // 在模板中使用的计算属性
 const otherParticipantMap = computed(() => {
@@ -403,7 +425,6 @@ const selectChat = (chat: ChatInfo) => {
 watch(
 	() => route.params.chatId,
 	(chatId) => {
-		console.log('Route chatId changed:', chatId);
 		console.log('Available chats:', Array.from(chats.value.entries()));
 		
 		if (chatId) {
@@ -589,14 +610,14 @@ onMounted(() => {
 const handleInput = () => {
 	if (!selectedChat.value || !userStore.userInfo || !typingManager.value) return;
 	
-	typingManager.value.startTyping(selectedChat.value.id, userStore.userInfo.id);
+	typingManager.value.startTyping(selectedChat.value.id, userStore.userInfo.user_id);
 };
 
 // 处理输入停止
 const handleStopTyping = () => {
 	if (!selectedChat.value || !userStore.userInfo || !typingManager.value) return;
 	
-	typingManager.value.stopTyping(selectedChat.value.id, userStore.userInfo.id);
+	typingManager.value.stopTyping(selectedChat.value.id, userStore.userInfo.user_id);
 };
 
 // 组件卸载时离开聊天室
