@@ -54,7 +54,7 @@ export class FriendshipsDAL {
 	): Promise<boolean> {
 		const db = getDB();
 		console.log("开始同步好友关系, userId:", userId);
-		console.log("接收到的好友数据:", friends);
+		console.log("接收到的好友数据:", friends.length, "条");
 
 		// 确保 userId 是整数
 		userId = Math.floor(userId);
@@ -90,6 +90,13 @@ export class FriendshipsDAL {
                 WHERE user_id = ?
             `);
 
+			// 添加聊天参与者
+			const addParticipantStmt = db.prepare(`
+                INSERT OR IGNORE INTO chat_participants
+                (chat_id, user_id, role)
+                VALUES (?, ?, 'MEMBER')
+            `);
+
 			// 处理每个好友的数据
 			for (const {friend} of friends) {
 				console.log("处理好友数据:", friend);
@@ -109,6 +116,10 @@ export class FriendshipsDAL {
 
 				// 3. 更新联系人的 chat_id
 				updateContactChatStmt.run(chatId, friendId);
+
+				// 4. 添加聊天参与者（当前用户和好友）
+				addParticipantStmt.run(chatId, userId); // 添加当前用户
+				addParticipantStmt.run(chatId, friendId); // 添加好友
 			}
 
 			// 4. 删除不再是好友的记录

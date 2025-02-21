@@ -15,6 +15,8 @@ export class DBMigration {
 			await this.migrateChats();
 			// 迁移 friendships 表
 			await this.migrateFriendships();
+			// 迁移 chat_participants 表
+			await this.migrateChatParticipants();
 
 			console.log("数据库迁移完成");
 		} catch (error) {
@@ -77,8 +79,7 @@ export class DBMigration {
                     chat_id INTEGER NOT NULL,
                     user_id INTEGER NOT NULL,
                     role TEXT NOT NULL DEFAULT 'MEMBER',
-                    FOREIGN KEY (chat_id) REFERENCES chats_new(chat_id),
-                    FOREIGN KEY (user_id) REFERENCES contacts(user_id)
+                    FOREIGN KEY (chat_id) REFERENCES chats_new(chat_id)
                 )
             `);
 
@@ -226,6 +227,64 @@ export class DBMigration {
 		} catch (error) {
 			db.exec("ROLLBACK");
 			console.error("friendships 表迁移失败:", error);
+			throw error;
+		}
+	}
+
+	/**
+	 * 迁移 chat_participants 表：更新外键约束
+	 */
+	private static async migrateChatParticipants() {
+		const db = getDB();
+		console.log("开始迁移 chat_participants 表");
+
+		db.exec("BEGIN TRANSACTION");
+		try {
+			// 0. 先删除已存在的触发器
+			db.exec(`DROP TRIGGER IF EXISTS check_chat_participant_user_id`);
+
+			// 1. 创建新表
+			db.exec(`
+                CREATE TABLE chat_participants_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    chat_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    role TEXT NOT NULL DEFAULT 'MEMBER',
+                    FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
+                );
+
+                -- 创建触发器
+                CREATE TRIGGER check_chat_participant_user_id
+                BEFORE INSERT ON chat_participants_new
+                BEGIN
+                    SELECT CASE
+                        WHEN NOT EXISTS (
+                            SELECT 1 FROM contacts WHERE user_id = NEW.user_id
+                            UNION
+                            SELECT 1 FROM login_user WHERE user_id = NEW.user_id
+                        )
+                        THEN RAISE(ABORT, 'Invalid user_id')
+                    END;
+                END;
+            `);
+
+			// 2. 复制数据
+			db.exec(`
+                INSERT INTO chat_participants_new 
+                SELECT * FROM chat_participants
+            `);
+
+			// 3. 删除旧表
+			db.exec("DROP TABLE chat_participants");
+
+			// 4. 重命名新表
+			db.exec("ALTER TABLE chat_participants_new RENAME TO chat_participants");
+
+			db.exec("COMMIT");
+			console.log("chat_participants 表迁移完成");
+		} catch (error) {
+			db.exec("ROLLBACK");
+			console.error("chat_participants 表迁移失败:", error);
 			throw error;
 		}
 	}

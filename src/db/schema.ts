@@ -63,9 +63,22 @@ export const initSchema = (db: Database) => {
 				chat_id INTEGER NOT NULL,
 				user_id INTEGER NOT NULL,
 				role TEXT NOT NULL DEFAULT 'MEMBER',
-				FOREIGN KEY (chat_id) REFERENCES chats(chat_id),
-				FOREIGN KEY (user_id) REFERENCES contacts(user_id)
-			)
+				FOREIGN KEY (chat_id) REFERENCES chats(chat_id)
+			);
+
+			-- 创建触发器，在插入前检查 user_id 是否有效
+			CREATE TRIGGER IF NOT EXISTS check_chat_participant_user_id
+			BEFORE INSERT ON chat_participants
+			BEGIN
+				SELECT CASE
+					WHEN NOT EXISTS (
+						SELECT 1 FROM contacts WHERE user_id = NEW.user_id
+						UNION
+						SELECT 1 FROM login_user WHERE user_id = NEW.user_id
+					)
+					THEN RAISE(ABORT, 'Invalid user_id')
+				END;
+			END;
 		`);
 
 		// 执行迁移
