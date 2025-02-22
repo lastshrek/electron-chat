@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
-import { MessageSquare, Users, Plus, Settings, LogOut, Video } from 'lucide-vue-next'
+import { MessageSquare, Users, Plus, Settings, LogOut, Video, FileText } from 'lucide-vue-next'
 import { eventBus } from '@/utils/eventBus'
 import { authApi } from '@/api/auth'
 import { useChatStore } from '@/stores/chat'
@@ -90,6 +90,15 @@ const handleLogout = async () => {
 	}
 }
 
+// 添加处理设置点击的方法
+const handleSettingsClick = () => {
+	toast({
+		title: "功能开发中",
+		description: "设置功能暂未开放，敬请期待",
+		duration: 3000
+	})
+}
+
 // 导航配置
 const navigation = [
 	{
@@ -106,6 +115,11 @@ const navigation = [
 		path: '/meeting',
 		icon: Video,
 		title: '会议'
+	},
+	{
+		path: '/docs',
+		icon: FileText,
+		title: '文档协作'
 	},
 	{
 		path: '/settings',
@@ -159,6 +173,7 @@ onUnmounted(() => {
 					:to="item.path"
 					class="block w-12 h-12 rounded-lg flex items-center justify-center text-[#8B9BB4] hover:bg-[#2A3441] hover:text-white transition-colors group relative"
 					:class="{ 'bg-[#2A3441] !text-white': route.path === item.path }"
+					@click="item.path === '/settings' ? handleSettingsClick() : null"
 				>
 					<component :is="item.icon" class="w-5 h-5" />
 					

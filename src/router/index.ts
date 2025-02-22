@@ -60,6 +60,14 @@ const routes: RouteRecordRaw[] = [
 		},
 	},
 	{
+		path: "/docs",
+		name: "docs",
+		component: () => import("@/views/Docs/Docs.vue"),
+		meta: {
+			requiresAuth: true,
+		},
+	},
+	{
 		path: "/:pathMatch(.*)*",
 		redirect: "/",
 	},
