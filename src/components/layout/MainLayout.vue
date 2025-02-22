@@ -20,10 +20,15 @@ const unreadCount = computed(() => chatStore.unreadTotal)
 // 初始化好友请求数量
 const initFriendRequests = async () => {
 	try {
-		const response = await authApi.getFriendRequests('PENDING')
-		friendRequestCount.value = response.length
+		const requests = await authApi.getFriendRequests('PENDING')
+		console.log('获取好友请求成功:', requests)
+		
+		// requests 现在是数组类型
+		friendRequestCount.value = Array.isArray(requests) ? requests.length : 0
+		
 	} catch (error) {
 		console.error('获取好友请求失败:', error)
+		friendRequestCount.value = 0
 	}
 }
 
@@ -83,7 +88,7 @@ onUnmounted(() => {
 			<div class="py-4">
 				<img
 					:src="userStore.userInfo?.avatar"
-					:alt="userStore.userInfo?.name || 'avatar'"
+					:alt="userStore.userInfo?.username || 'avatar'"
 					class="w-10 h-10 rounded-lg hover:rounded-3xl transition-all duration-300"
 				/>
 			</div>

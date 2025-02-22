@@ -1,37 +1,38 @@
 import type {Friend} from "./api";
 
-interface DBOperations {
-	createLoginUser: (params: {user_id: number; username: string; avatar: string}) => Promise<any>;
-	getCurrentUser: () => Promise<any>;
-	clearLoginUser: () => Promise<boolean>;
-	syncFriends: (friends: Friend[]) => Promise<boolean>;
-	getFriends: (userId: number) => Promise<
-		{
+interface IpcRenderer {
+	invoke(channel: string, ...args: any[]): Promise<any>;
+	on(channel: string, func: (...args: any[]) => void): void;
+	once(channel: string, func: (...args: any[]) => void): void;
+}
+
+interface DB {
+	createLoginUser(user: {username: string; avatar: string; user_id: number}): Promise<any>;
+	getCurrentUser(): Promise<any>;
+	syncFriends(friends: Friend[], userId: number): Promise<boolean>;
+	getFriends(userId: number): Promise<
+		Array<{
 			id: number;
-			createdAt: string;
 			userId: number;
 			friendId: number;
-			friendUsername: string;
-			friendAvatar: string;
-		}[]
+			createdAt: string;
+			friend: {
+				id: number;
+				username: string;
+				avatar: string;
+			};
+		}>
 	>;
 }
 
-export interface ElectronAPI {
-	platform: string;
-	send: (channel: string, data: any) => void;
-	on: (channel: string, callback: Function) => void;
-	db: DBOperations;
-	ipcRenderer: {
-		invoke: (channel: string, ...args: any[]) => Promise<any>;
-		on: (channel: string, callback: Function) => void;
-		off: (channel: string, callback: Function) => void;
-	};
+interface Electron {
+	ipcRenderer: IpcRenderer;
+	db: DB;
 }
 
 declare global {
 	interface Window {
-		electron: ElectronAPI;
+		electron: Electron;
 	}
 }
 

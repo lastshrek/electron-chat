@@ -79,5 +79,18 @@ export const useMessageStore = defineStore("message", {
 				}
 			}
 		},
+
+		updateMessageId(oldId: number, newId: number) {
+			for (const messages of this.messages.values()) {
+				const messageIndex = messages.findIndex((m) => m.id === oldId);
+				if (messageIndex !== -1) {
+					messages[messageIndex] = {
+						...messages[messageIndex],
+						id: newId,
+					};
+					break;
+				}
+			}
+		},
 	},
 });

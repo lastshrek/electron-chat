@@ -37,8 +37,17 @@ type Events = {
 		};
 		timestamp: string;
 	};
+	"friend-request-accepted": any;
 	"clear-friend-request-count": void;
 	"unread-count-updated": number;
+	userTyping: {
+		chatId: number;
+		userId: number;
+	};
+	userStopTyping: {
+		chatId: number;
+		userId: number;
+	};
 	friendsSynced: void;
 };
 

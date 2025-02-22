@@ -1,5 +1,4 @@
 import request from "@/utils/request";
-import type {ApiResponse} from "@/types/api";
 
 export interface ChatResponse {
 	chats: Array<{
@@ -16,7 +15,7 @@ export interface ChatResponse {
 			username: string;
 			avatar: string;
 		};
-		lastMessage: {
+		lastMessage?: {
 			id: number;
 			content: string;
 			type: string;
@@ -44,6 +43,6 @@ export interface ChatResponse {
 
 export const chatApi = {
 	getChats(params: {limit: number; page: number}) {
-		return request.get<ApiResponse<ChatResponse>>("/messages/chats", {params});
+		return request.get<ChatResponse>("/messages/chats", {params});
 	},
 };

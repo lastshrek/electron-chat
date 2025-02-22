@@ -4,12 +4,19 @@ import type {FriendRequestData} from "@/types/ws";
 import {eventBus} from "@/utils/eventBus";
 import {useUserStore} from "@/stores/user";
 import {io} from "socket.io-client"; // 确保已经导入
-import {chatApi} from "@/api/chat";
+import {chatApi, type ChatResponse} from "@/api/chat";
+import {wsService} from "@/services/ws";
+import type {Message} from "@/types/api";
 
 export interface ChatInfo {
 	id: number;
 	name: string | null;
 	type: "DIRECT" | "GROUP";
+	participants: Array<{
+		id: number;
+		username: string;
+		avatar: string;
+	}>;
 	lastMessage?: {
 		id: number;
 		content: string;
@@ -21,18 +28,13 @@ export interface ChatInfo {
 			username: string;
 			avatar: string;
 		};
-		receiver: {
-			id: number;
-			username: string;
-			avatar: string;
-		};
 	};
 	unreadCount: number;
-	participants: Array<{
+	otherUser?: {
 		id: number;
 		username: string;
 		avatar: string;
-	}>;
+	};
 }
 
 export const useChatStore = defineStore("chat", {
@@ -79,9 +81,13 @@ export const useChatStore = defineStore("chat", {
 				});
 
 				// 监听连接事件
-				this.socket.on("connect", () => {
+				this.socket.on("connect", async () => {
 					console.log("socket 连接成功");
 					this.connected = true;
+					this.initialized = true;
+
+					// socket 连接成功后加载聊天列表
+					await this.loadChats();
 				});
 
 				// 监听断开连接事件
@@ -174,7 +180,10 @@ export const useChatStore = defineStore("chat", {
 				console.log("开始加载聊天列表");
 				const response = await chatApi.getChats({limit: 20, page: 1});
 				console.log("获取聊天列表成功:", response);
-				if (!response.chats) {
+
+				const chats = response as unknown as ChatResponse;
+
+				if (!chats?.chats || chats.chats.length === 0) {
 					console.warn("未获取到任何聊天");
 					return;
 				}
@@ -183,7 +192,7 @@ export const useChatStore = defineStore("chat", {
 				this.chats.clear();
 
 				// 添加新的聊天
-				for (const chat of response.chats) {
+				for (const chat of chats.chats) {
 					this.setChat({
 						id: chat.id,
 						name: chat.name,
@@ -200,6 +209,7 @@ export const useChatStore = defineStore("chat", {
 							  }
 							: undefined,
 						unreadCount: chat.unreadCount,
+						otherUser: chat.otherUser,
 					});
 				}
 

@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:28:39
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-22 10:12:46
+ * @LastEditTime : 2025-02-22 13:47:39
  * @FilePath     : /src/views/Home/Home.vue
  * @Description  : 
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -30,8 +30,8 @@
 						<!-- 头像 -->
 						<div class="relative">
 							<AsyncImage
-								:src="otherParticipants.get(chat.id)?.avatar"
-								:alt="otherParticipants.get(chat.id)?.username"
+								:src="chat.otherUser?.avatar"
+								:alt="chat.otherUser?.username"
 								class="w-12 h-12 rounded-lg hover:rounded-3xl transition-all duration-300"
 							/>
 							<div
@@ -46,7 +46,7 @@
 						<div class="flex-1 min-w-0">
 							<div class="flex items-center justify-between">
 								<span class="font-medium truncate">
-									{{ otherParticipants.get(chat.id)?.username }}
+									{{ chat.otherUser?.username }}
 								</span>
 								<span v-if="chat.lastMessage" class="text-xs text-slate-400">
 									{{ formatTime(chat.lastMessage.timestamp) }}
@@ -73,7 +73,7 @@
 				<div class="h-14 border-b flex items-center px-4 shrink-0">
 					<div class="flex items-center truncate">
 						<h2 class="font-medium truncate">
-							{{ otherParticipants.get(selectedChat.id)?.username }}
+							{{ selectedChat.otherUser?.username }}
 						</h2>
 					</div>
 				</div>
@@ -292,32 +292,6 @@ const messageList = ref<HTMLElement | null>(null);
 const typingUsers = ref<number[]>([]);
 const typingManager = ref<ChatTypingManager>();
 
-// 修改类型定义
-interface ChatParticipant {
-	chat_id: number;
-	user_id: number;
-	role: string;
-	username: string;
-	avatar: string;
-	id: number; // 添加 id 字段
-}
-
-interface OtherParticipant {
-	username: string;
-	avatar: string;
-	user_id: number;
-	chat_id: number;
-	friendship_id?: number;
-	friend_since?: string;
-	id: number; // 添加 id 字段
-}
-
-// 修改参与者缓存的类型
-const participantsCache = ref(new Map<number, Array<ChatParticipant>>());
-
-// 修改其他参与者信息的类型
-const otherParticipants = ref(new Map<number, OtherParticipant>());
-
 // 修改获取其他参与者的方法
 const getOtherParticipant = async (chat: ChatInfo) => {
 	if (!userStore.userInfo) return null;
@@ -329,90 +303,43 @@ const getOtherParticipant = async (chat: ChatInfo) => {
 	return otherParticipant || null;
 };
 
-// 加载所有聊天的参与者信息
-const loadAllParticipants = async () => {
-	for (const chat of chats.value.values()) {
-		await getOtherParticipant(chat);
-	}
-};
-
-// 监听聊天列表变化
-watch(
-	() => chats.value,
-	async (newChats) => {
-		if (!newChats || !chatStore.initialized) return;
-		clearParticipantCache();
-		await loadAllParticipants();
-	},
-	{ deep: true }
-);
-
-// 在组件挂载时加载参与者信息
+// 修改组件挂载时的逻辑
 onMounted(async () => {
 	console.log("Home 组件挂载");
-	// 如果已经初始化过了，才加载参与者信息
-	if (chatStore.initialized) {
-		console.log("开始加载参与者信息");
-		await loadAllParticipants();
-		
-		if (selectedChat.value) {
-			chatStore.clearUnread(selectedChat.value.id);
-		}
+	
+	// 如果有选中的聊天，清除未读数
+	if (selectedChat.value) {
+		chatStore.clearUnread(selectedChat.value.id);
 	}
 
-	try {
-		await chatStore.loadChats();
-	} catch (error) {
-		console.error('加载聊天列表失败:', error);
-		toast({
-			variant: 'destructive',
-			title: '加载失败',
-			description: '无法加载聊天列表'
+	// 设置输入状态管理器
+	if (wsService.socket) {
+		typingManager.value = new ChatTypingManager(wsService.socket);
+		typingManager.value.on('typingStatusChanged', ({ chatId, userId, typing }) => {
+			if (selectedChat.value?.id === chatId && userId !== userStore.userInfo?.id) {
+				if (typing && !typingUsers.value.includes(userId)) {
+					typingUsers.value.push(userId);
+				} else if (!typing) {
+					typingUsers.value = typingUsers.value.filter(id => id !== userId);
+				}
+			}
 		});
 	}
-});
 
-// 监听聊天初始化完成
-watch(
-	() => chatStore.initialized,
-	async (newValue) => {
-		if (newValue) {
-			console.log("聊天初始化完成，开始加载参与者信息");
-			await loadAllParticipants();
-		}
-	}
-);
-
-// 在模板中使用的计算属性
-const otherParticipantMap = computed(() => {
-	const map = new Map<number, {
-		username: string;
-		avatar: string;
-		user_id: number;
-	} | null>();
-	
-	Array.from(chats.value.values()).forEach(async chat => {
-		const participant = await getOtherParticipant(chat);
-		if (participant) {
-			map.set(chat.id, {
-				username: participant.username,
-				avatar: participant.avatar,
-				user_id: participant.user_id
+	// 如果 store 已经初始化，直接加载聊天列表
+	if (chatStore.initialized) {
+		try {
+			await chatStore.loadChats();
+		} catch (error) {
+			console.error('加载聊天列表失败:', error);
+			toast({
+				variant: 'destructive',
+				title: '加载失败',
+				description: '无法加载聊天列表'
 			});
 		}
-	});
-	
-	return map;
-});
-
-// 清除缓存的辅助方法
-const clearParticipantCache = (chatId?: number) => {
-	if (chatId) {
-		participantsCache.value.delete(chatId);
-	} else {
-		participantsCache.value.clear();
 	}
-};
+});
 
 // 选择聊天
 const selectChat = (chat: ChatInfo) => {
@@ -488,8 +415,7 @@ const sendMessage = async () => {
 	handleStopTyping();
 	console.log(TAG, '发送消息:', selectedChat.value);
 	
-	const otherParticipant = await getOtherParticipant(selectedChat.value);
-	if (!otherParticipant) {
+	if (!selectedChat.value.otherUser) {
 		toast({
 			variant: "destructive",
 			title: "发送失败",
@@ -500,7 +426,7 @@ const sendMessage = async () => {
 
 	const success = await messageService.sendTextMessage(
 		selectedChat.value.id,
-		otherParticipant.user_id,
+		selectedChat.value.otherUser.id,
 		message.value
 	);
 
@@ -524,33 +450,23 @@ const handleFocusOut = (event: FocusEvent) => {
 	handleStopTyping();
 };
 
-// 修改文件上传方法
+// 修改文件上传方法，使用 otherUser
 const handleFileUpload = async (event: Event) => {
 	const input = event.target as HTMLInputElement;
 	const file = input.files?.[0];
-	if (!file || !selectedChat.value) return;
-
-	const otherParticipant = await getOtherParticipant(selectedChat.value);
-	if (!otherParticipant) {
-		toast({
-			variant: "destructive",
-			title: "发送失败",
-			description: "找不到聊天对象",
-		});
-		return;
-	}
+	if (!file || !selectedChat.value || !selectedChat.value.otherUser) return;
 
 	let success = false;
 	if (file.type.startsWith("image/")) {
 		success = await messageService.sendImageMessage(
 			selectedChat.value.id,
-			otherParticipant.user_id,
+			selectedChat.value.otherUser.id,
 			file
 		);
 	} else {
 		success = await messageService.sendFileMessage(
 			selectedChat.value.id,
-			otherParticipant.user_id,
+			selectedChat.value.otherUser.id,
 			file
 		);
 	}
@@ -593,26 +509,6 @@ watch(messageGroups, (newMessages) => {
 		scrollToBottom();
 	});
 }, { deep: true });
-
-// 在进入页面时清除该页面聊天的未读数
-onMounted(() => {
-	if (selectedChat.value) {
-		chatStore.clearUnread(selectedChat.value.id)
-	}
-
-	if (wsService.socket) {
-		typingManager.value = new ChatTypingManager(wsService.socket);
-		typingManager.value.on('typingStatusChanged', ({ chatId, userId, typing }) => {
-			if (selectedChat.value?.id === chatId && userId !== userStore.userInfo?.id) {
-				if (typing && !typingUsers.value.includes(userId)) {
-					typingUsers.value.push(userId);
-				} else if (!typing) {
-					typingUsers.value = typingUsers.value.filter(id => id !== userId);
-				}
-			}
-		});
-	}
-});
 
 // 处理输入变化
 const handleInput = () => {

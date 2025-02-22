@@ -94,3 +94,101 @@ export interface FriendsResponse {
 	data: Friend[];
 	message: string;
 }
+
+export interface FriendRequest {
+	id: number;
+	fromId: number;
+	toId: number;
+	status: "PENDING" | "ACCEPTED" | "REJECTED";
+	message: string | null;
+	createdAt: string;
+	from: {
+		id: number;
+		username: string;
+		name: string | null;
+		avatar: string;
+	};
+	to: {
+		id: number;
+		username: string;
+		name: string | null;
+		avatar: string;
+	};
+}
+
+// 好友请求响应
+export interface FriendRequestResponse
+	extends Array<{
+		id: number;
+		fromId: number;
+		toId: number;
+		status: "PENDING" | "ACCEPTED" | "REJECTED";
+		message: string | null;
+		createdAt: string;
+		from: {
+			id: number;
+			username: string;
+			name: string | null;
+			avatar: string;
+		};
+		to: {
+			id: number;
+			username: string;
+			name: string | null;
+			avatar: string;
+		};
+	}> {}
+
+// 消息状态类型
+export type MessageStatus = "SENDING" | "SENT" | "DELIVERED" | "READ" | "FAILED";
+
+// 消息类型
+export interface Message {
+	id: number;
+	content: string;
+	type: string;
+	status: MessageStatus;
+	metadata?: Record<string, any>;
+	timestamp: string;
+	senderId: number;
+	receiverId: number;
+	chatId: number;
+	sender: {
+		id: number;
+		username: string;
+		avatar: string;
+	};
+	receiver: {
+		id: number;
+		username: string;
+		avatar: string;
+	};
+}
+
+// 组织架构节点
+export interface OrganizationNode {
+	id: string;
+	name: string;
+	type: number; // 1: 部门, 2: 公司
+	order: number;
+	parentId: string | null;
+	userCount: number; // 直属人员数量
+	totalUserCount: number; // 包含子部门的总人数
+	children: OrganizationNode[];
+	expanded?: boolean; // 添加展开状态字段
+}
+
+// 组织架构响应
+export interface OrganizationResponse {
+	code: number;
+	data: OrganizationNode[];
+	message: string;
+}
+
+// 部门用户类型定义
+export interface DepartmentUser {
+	id: string;
+	name: string;
+	avatar: string;
+	dutyName: string | null;
+}

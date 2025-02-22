@@ -7,6 +7,7 @@ export enum WebSocketEvent {
 
 	// 聊天相关
 	NEW_MESSAGE = "message",
+	CHAT_MESSAGE = "chat_message",
 	TYPING = "typing",
 	STOP_TYPING = "stopTyping",
 
@@ -53,73 +54,45 @@ export interface FriendRequestData {
 			status: "PENDING" | "ACCEPTED" | "REJECTED";
 			message: string | null;
 			createdAt: string;
-			updatedAt: string;
 			from: {
 				id: number;
 				username: string;
+				name: string | null;
 				avatar: string;
 			};
 			to: {
 				id: number;
 				username: string;
+				name: string | null;
 				avatar: string;
 			};
-		};
-		friend?: {
-			id: number;
-			username: string;
-			avatar: string;
 		};
 		chat?: {
 			id: number;
 			name: string | null;
-			type: "DIRECT";
+			type: "DIRECT" | "GROUP";
 			createdAt: string;
 			updatedAt: string;
 			participants: Array<{
 				id: number;
-				userId: number;
-				chatId: number;
-				joinedAt: string;
-				user: {
-					id: number;
-					username: string;
-					avatar: string;
-					createdAt: string;
-					updatedAt: string;
-				};
+				username: string;
+				avatar: string;
 			}>;
 			lastMessage?: {
 				id: number;
 				content: string;
-				type: "TEXT";
-				status: "SENT";
-				metadata: Record<string, any>;
-				createdAt: string;
-				updatedAt: string;
-				senderId: number;
-				receiverId: number;
-				chatId: number;
+				type: string;
+				status: string;
+				timestamp: string;
 				sender: {
 					id: number;
 					username: string;
 					avatar: string;
-					createdAt: string;
-					updatedAt: string;
 				};
 				receiver: {
 					id: number;
 					username: string;
 					avatar: string;
-					createdAt: string;
-					updatedAt: string;
-				};
-				chat: {
-					id: number;
-					name: string | null;
-					type: "DIRECT";
-					createdAt: string;
-					updatedAt: string;
 				};
 			};
 		};
@@ -136,28 +109,20 @@ export interface FriendStatusData {
 
 // 聊天消息
 export interface ChatMessageData {
-	type: "message";
+	type: string;
 	data: {
 		id: number;
 		content: string;
-		type: "TEXT" | "IMAGE" | "FILE";
-		status: "SENT" | "DELIVERED" | "READ";
+		type: string;
+		status: string;
 		metadata: Record<string, any> | null;
 		createdAt: string;
 		updatedAt: string;
 		senderId: number;
 		receiverId: number;
 		chatId: number;
-		sender: {
-			id: number;
-			username: string;
-			avatar: string;
-		};
-		receiver: {
-			id: number;
-			username: string;
-			avatar: string;
-		};
+		sender: UserInfo;
+		receiver: UserInfo;
 	};
 	timestamp: string;
 }
@@ -214,4 +179,12 @@ export interface TypingEventData {
 		chatId: number;
 	};
 	timestamp: string;
+}
+
+// 其他相关类型定义
+export interface UserInfo {
+	id: number;
+	username: string;
+	name: string | null;
+	avatar: string;
 }

@@ -19,12 +19,15 @@ import type {
 	FriendRequestParams,
 	UserInfo,
 	Friend,
+	FriendRequestResponse,
+	OrganizationResponse,
+	DepartmentUser,
 } from "@/types/api";
 
 export const authApi = {
 	// 登录
 	login: (params: LoginParams) => {
-		return request.post<ApiResponse<LoginResponse>>("/users/login", params);
+		return request.post<LoginResponse>("/users/login", params);
 	},
 
 	// 登出
@@ -44,7 +47,7 @@ export const authApi = {
 
 	// 搜索用户
 	searchUsers: (keyword: string) => {
-		return request.get<ApiResponse<SearchResponse>>("/users/search", {
+		return request.get<SearchResponse>("/users/search", {
 			params: {keyword},
 		});
 	},
@@ -56,30 +59,7 @@ export const authApi = {
 
 	// 获取好友请求列表
 	getFriendRequests: (status: "PENDING" | "ACCEPTED" | "REJECTED") => {
-		return request.get<
-			ApiResponse<{
-				requests: Array<{
-					id: number;
-					fromId: number;
-					toId: number;
-					status: "PENDING" | "ACCEPTED" | "REJECTED";
-					message: string | null;
-					createdAt: string;
-					from: {
-						id: number;
-						username: string;
-						name: string | null;
-						avatar: string;
-					};
-					to: {
-						id: number;
-						username: string;
-						name: string | null;
-						avatar: string;
-					};
-				}>;
-			}>
-		>("/users/friend-requests", {
+		return request.get<FriendRequestResponse>("/users/friend-requests", {
 			params: {status},
 		});
 	},
@@ -98,7 +78,17 @@ export const authApi = {
 
 	// 获取好友列表
 	getFriends: () => {
-		return request.get<ApiResponse<Friend[]>>("/users/friends");
+		return request.get<Friend[]>("/users/friends");
+	},
+
+	// 获取组织架构
+	getOrganizations: () => {
+		return request.get<OrganizationResponse>("/organizations/structure");
+	},
+
+	// 获取部门用户列表
+	getDepartmentUsers: (departmentId: string) => {
+		return request.get<DepartmentUser[]>(`/organizations/${departmentId}/users`);
 	},
 };
 

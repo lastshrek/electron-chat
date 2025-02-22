@@ -16,6 +16,7 @@ import {useChatStore} from "./chat";
 import {useMessageStore} from "./message";
 import {wsService} from "@/services/ws";
 import {useRouter} from "vue-router";
+import type {DB} from "@/types/electron";
 
 const TOKEN_KEY = "token";
 const USER_INFO_KEY = "user_info";
@@ -64,7 +65,13 @@ export const useUserStore = defineStore("user", () => {
 					return;
 				}
 
-				await window.electron.db.syncFriends(response, userInfo.value.id);
+				const db = window.electron?.db as DB;
+				if (!db) {
+					console.error("electron.db 未定义!");
+					return;
+				}
+
+				await db.syncFriends(response, userInfo.value.id);
 			} else {
 				console.error("好友列表数据格式错误:", response);
 			}
@@ -141,12 +148,13 @@ export const useUserStore = defineStore("user", () => {
 			// 通过 electron API 保存用户信息到数据库
 			try {
 				console.log("准备保存用户信息到数据库:", user);
-				if (!window?.electron?.db) {
+				const db = window.electron?.db as DB;
+				if (!db) {
 					console.error("electron.db 未定义!");
 					return false;
 				}
 
-				const result = await window.electron.db.createLoginUser({
+				const result = await db.createLoginUser({
 					username: user.username,
 					avatar: user.avatar,
 					user_id: user.id,

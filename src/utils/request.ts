@@ -45,12 +45,14 @@ request.interceptors.request.use(
 request.interceptors.response.use(
 	(response: AxiosResponse<ApiResponse<any>>) => {
 		// 处理成功响应
-		if (response.status === 201 || response.status === 200) {
+		if (response.status === 200 || response.status === 201) {
+			console.log("Response data:", response.data);
 			return response.data.data;
 		}
 
 		// 处理特定错误码
 		const {code, message} = response.data;
+		console.error("API error:", code, message);
 		switch (code) {
 			case 401:
 				// token 过期或未登录
@@ -81,6 +83,7 @@ request.interceptors.response.use(
 		return Promise.reject(new Error(message || "请求失败"));
 	},
 	(error: AxiosError<ApiResponse<any>>) => {
+		console.error("Request error:", error);
 		if (error.response?.data) {
 			const {message, code} = error.response.data;
 			toast({

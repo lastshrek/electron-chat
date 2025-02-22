@@ -12,9 +12,10 @@ import {
 	type TypingEventData,
 } from "@/types/ws";
 import {eventBus} from "@/utils/eventBus";
-import {useChatStore} from "@/stores/chat";
+import {ChatInfo, useChatStore} from "@/stores/chat";
 import router from "@/router"; // 直接导入 router 实例
 import {useMessageStore} from "@/stores/message";
+import type {Message, MessageStatus} from "@/types/api";
 
 const WS_URL = import.meta.env.VITE_WS_URL;
 
@@ -142,12 +143,12 @@ export class WebSocketService {
 				id: data.id,
 				content: data.content,
 				type: data.type,
-				status: data.status,
+				status: data.status.toUpperCase() as MessageStatus,
 				senderId: data.senderId,
 				receiverId: data.receiverId,
 				chatId: data.chatId,
 				timestamp: data.createdAt,
-				metadata: data.metadata,
+				metadata: data.metadata || undefined,
 				sender: data.sender,
 				receiver: data.receiver,
 			});
@@ -215,7 +216,7 @@ export class WebSocketService {
 			// 更新消息ID和其他信息
 			messageStore.updateMessage(data.tempId, {
 				id: data.message.id,
-				status: data.message.status.toUpperCase(),
+				status: data.message.status.toUpperCase() as MessageStatus,
 				timestamp: data.message.createdAt,
 			});
 
@@ -303,18 +304,27 @@ export class WebSocketService {
 
 		// 保存聊天信息
 		if (data.data.chat) {
-			chatStore.upsertChat(data.data.chat);
+			// 使用 setChat 而不是 upsertChat
+			chatStore.setChat({
+				id: data.data.chat.id,
+				name: data.data.chat.name,
+				type: data.data.chat.type,
+				participants: data.data.chat.participants,
+				lastMessage: data.data.chat.lastMessage,
+				unreadCount: 0,
+				otherUser: data.data.chat.participants.find((p) => p.id !== data.data.request.toId),
+			});
 		}
 
 		// 如果不在首页，增加未读数
-		if (router.currentRoute.value.name !== "home") {
-			chatStore.incrementUnread(data.data.chat?.id!);
+		if (router.currentRoute.value.name !== "home" && data.data.chat) {
+			chatStore.incrementUnread(data.data.chat.id);
 		}
 
 		// 通知用户
 		toast({
 			title: "好友请求已接受",
-			description: `${data.data.request.from.username} 接受了您的好友请求`,
+			description: `${data.data.request.from.username} 已成为您的好友`,
 		});
 
 		// 触发事件通知其他组件更新
