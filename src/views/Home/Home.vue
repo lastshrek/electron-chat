@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:28:39
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-22 10:05:41
+ * @LastEditTime : 2025-02-22 10:12:46
  * @FilePath     : /src/views/Home/Home.vue
  * @Description  : 
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -320,33 +320,13 @@ const otherParticipants = ref(new Map<number, OtherParticipant>());
 
 // 修改获取其他参与者的方法
 const getOtherParticipant = async (chat: ChatInfo) => {
-	if (!window.electron?.ipcRenderer) return null;
+	if (!userStore.userInfo) return null;
 	
-	try {
-		if (!participantsCache.value.has(chat.id)) {
-			const participants = await window.electron.ipcRenderer.invoke('db:getChatParticipants', chat.id);
-			participantsCache.value.set(chat.id, participants);
-
-			const otherParticipant = participants.find(p => p.user_id !== userStore.userInfo?.user_id);
-			// console.log(TAG, '获取聊天参与者:', otherParticipant);
-			if (otherParticipant) {
-				otherParticipants.value.set(chat.id, {
-					username: otherParticipant.username,
-					avatar: otherParticipant.avatar,
-					user_id: otherParticipant.user_id,
-					chat_id: otherParticipant.chat_id,
-					id: otherParticipant.id,
-					friendship_id: otherParticipant.friendship_id,
-					friend_since: otherParticipant.friend_since
-				});
-			}
-		}
-		
-		return otherParticipants.value.get(chat.id);
-	} catch (error) {
-		console.error(TAG, '获取聊天参与者失败:', error);
-		return null;
-	}
+	const otherParticipant = chat.participants.find(
+		p => p.id !== userStore.userInfo?.user_id
+	);
+	
+	return otherParticipant || null;
 };
 
 // 加载所有聊天的参与者信息
@@ -378,6 +358,17 @@ onMounted(async () => {
 		if (selectedChat.value) {
 			chatStore.clearUnread(selectedChat.value.id);
 		}
+	}
+
+	try {
+		await chatStore.loadChats();
+	} catch (error) {
+		console.error('加载聊天列表失败:', error);
+		toast({
+			variant: 'destructive',
+			title: '加载失败',
+			description: '无法加载聊天列表'
+		});
 	}
 });
 

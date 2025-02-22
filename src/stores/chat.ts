@@ -4,6 +4,7 @@ import type {FriendRequestData} from "@/types/ws";
 import {eventBus} from "@/utils/eventBus";
 import {useUserStore} from "@/stores/user";
 import {io} from "socket.io-client"; // 确保已经导入
+import {chatApi} from "@/api/chat";
 
 export interface ChatInfo {
 	id: number;
@@ -169,22 +170,11 @@ export const useChatStore = defineStore("chat", {
 		},
 
 		async loadChats() {
-			if (!window.electron?.ipcRenderer) return;
-
 			try {
-				// 先获取当前登录用户
-				const currentUser = await window.electron.ipcRenderer.invoke("db:getCurrentUser");
-				if (!currentUser) {
-					console.warn("未找到当前登录用户，跳过加载聊天列表");
-					return;
-				}
-				console.log("当前登录用户:", currentUser);
-
 				console.log("开始加载聊天列表");
-				const chats = await window.electron.ipcRenderer.invoke("db:getChats");
-				console.log("获取到的聊天列表:", chats);
-
-				if (!chats || chats.length === 0) {
+				const response = await chatApi.getChats({limit: 20, page: 1});
+				console.log("获取聊天列表成功:", response);
+				if (!response.chats) {
 					console.warn("未获取到任何聊天");
 					return;
 				}
@@ -193,9 +183,24 @@ export const useChatStore = defineStore("chat", {
 				this.chats.clear();
 
 				// 添加新的聊天
-				for (const chat of chats) {
-					console.log("添加聊天:", chat);
-					this.setChat(chat);
+				for (const chat of response.chats) {
+					this.setChat({
+						id: chat.id,
+						name: chat.name,
+						type: chat.type,
+						participants: chat.participants,
+						lastMessage: chat.lastMessage
+							? {
+									id: chat.lastMessage.id,
+									content: chat.lastMessage.content,
+									type: chat.lastMessage.type,
+									status: chat.lastMessage.status,
+									timestamp: chat.lastMessage.createdAt,
+									sender: chat.lastMessage.sender,
+							  }
+							: undefined,
+						unreadCount: chat.unreadCount,
+					});
 				}
 
 				console.log("聊天列表加载完成，数量:", this.chats.size);
