@@ -125,13 +125,19 @@ export class WebSocketService {
 
 		// 收到新的聊天消息
 		this.socket.on(WebSocketEvent.NEW_MESSAGE, (response: ChatMessageData) => {
-			console.log("Chat message:", response);
+			console.log("收到新消息:", response);
 			const messageStore = useMessageStore();
 			const chatStore = useChatStore();
 			const userStore = useUserStore();
 			const {data} = response;
 
-			// 保存消息
+			// 检查消息是否来自自己
+			if (data.senderId === userStore.userInfo?.user_id) {
+				console.log("跳过自己发送的消息");
+				return;
+			}
+
+			// 保存消息到 store
 			messageStore.addMessage({
 				id: data.id,
 				content: data.content,
@@ -146,39 +152,45 @@ export class WebSocketService {
 				receiver: data.receiver,
 			});
 
-			// 更新聊天列表的最后一条消息
-			chatStore.updateLastMessage(data.chatId, {
-				id: data.id,
-				content: data.content,
-				type: data.type,
-				status: data.status,
-				timestamp: data.createdAt,
-				sender: data.sender,
-				receiver: data.receiver,
-			});
+			// 更新最后一条消息并移动聊天到顶部
+			const chat = chatStore.chats.get(data.chatId);
+			if (chat) {
+				// 先从Map中删除这个聊天
+				chatStore.chats.delete(data.chatId);
 
-			// 如果是自己发送的消息，不需要处理未读数和通知
-			if (data.senderId === userStore.userInfo?.id) {
-				return;
-			}
+				// 更新最后一条消息
+				chat.lastMessage = {
+					id: data.id,
+					content: data.content,
+					type: data.type,
+					status: data.status,
+					timestamp: data.createdAt,
+					sender: data.sender,
+					receiver: data.receiver,
+				};
 
-			// 获取当前选中的聊天ID
-			const currentChatId = router.currentRoute.value.query.chatId;
-
-			// 判断是否在当前聊天中
-			const isInCurrentChat =
-				document.visibilityState === "visible" && // 页面可见
-				router.currentRoute.value.name === "chat" && // 在聊天页面
-				router.currentRoute.value.params.chatId === data.chatId.toString(); // 在同一个聊天中
-
-			// 只有不在当前聊天时才增加未读数和显示通知
-			if (!isInCurrentChat) {
-				chatStore.incrementUnread(data.chatId);
-
-				toast({
-					title: data.sender.username,
-					description: data.content,
+				// 重新添加到Map的开头
+				const newChats = new Map<number, ChatInfo>();
+				newChats.set(data.chatId, chat);
+				chatStore.chats.forEach((value, key) => {
+					if (key !== data.chatId) {
+						newChats.set(key, value);
+					}
 				});
+				chatStore.chats = newChats;
+
+				// 检查是否在当前聊天页面
+				const currentRoute = router.currentRoute.value;
+				const isInChatPage = currentRoute.name === "chat";
+				const currentChatId = Number(currentRoute.params.chatId);
+
+				// 只有不在当前聊天页面时才增加未读数
+				if (!isInChatPage || currentChatId !== data.chatId) {
+					console.log("不在当前聊天页面，增加未读数");
+					chatStore.incrementUnread(data.chatId);
+				} else {
+					console.log("在当前聊天页面，不增加未读数");
+				}
 			}
 		});
 

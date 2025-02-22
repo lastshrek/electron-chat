@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
 import { MessageSquare, Users, Plus, Settings, LogOut } from 'lucide-vue-next'
@@ -15,7 +15,7 @@ const chatStore = useChatStore()
 const activeNav = ref(router.currentRoute.value.name)
 
 const friendRequestCount = ref(0)
-const unreadCount = ref(chatStore.unreadTotal)
+const unreadCount = computed(() => chatStore.unreadTotal)
 
 // 初始化好友请求数量
 const initFriendRequests = async () => {
@@ -41,8 +41,6 @@ onMounted(async () => {
 	eventBus.on('clear-friend-request-count', () => {
 		clearFriendRequestCount()
 	})
-
-	eventBus.on('unread-count-updated', handleUnreadUpdate)
 })
 
 // 清除好友请求数量
@@ -71,15 +69,9 @@ const handleLogout = async () => {
 	router.push('/login')
 }
 
-// 监听未读消息更新
-const handleUnreadUpdate = (count: number) => {
-	unreadCount.value = count
-}
-
 onUnmounted(() => {
 	eventBus.off('friend-request')
 	eventBus.off('clear-friend-request-count')
-	eventBus.off('unread-count-updated', handleUnreadUpdate)
 })
 </script>
 

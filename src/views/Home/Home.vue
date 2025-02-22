@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:28:39
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-22 00:26:06
+ * @LastEditTime : 2025-02-22 10:05:41
  * @FilePath     : /src/views/Home/Home.vue
  * @Description  : 
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -79,79 +79,94 @@
 				</div>
 
 				<!-- 消息列表 -->
-				<div class="flex-1 overflow-y-auto p-4 space-y-8 min-h-0" ref="messageList">
-					<div v-for="group in messageGroups" :key="group.date" class="space-y-4">
-						<div class="text-center">
-							<span class="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded">
-								{{ group.date }}
-							</span>
-						</div>
-						<div v-for="message in group.messages" :key="message.id" class="space-y-2">
-							<div
-								class="flex"
-								:class="message.senderId === userStore.userInfo?.id ? 'justify-end' : 'justify-start'"
+				<div class="flex-1 overflow-y-auto p-4 space-y-4" ref="messageList">
+					<template v-for="message in messageGroups" :key="message.id">
+						<!-- 消息容器 -->
+						<div 
+							class="flex items-start gap-2" 
+							:class="[
+								message.sender?.id === userStore.userInfo?.user_id 
+									? 'flex-row-reverse' 
+									: 'flex-row'
+							]"
+						>
+							<!-- 头像 -->
+							<div class="flex-shrink-0">
+								<img
+									v-if="message.sender?.avatar"
+									:src="message.sender.avatar"
+									:alt="message.sender?.username || '用户头像'"
+									class="w-8 h-8 rounded-lg hover:rounded-3xl transition-all duration-300"
+								/>
+								<div v-else class="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center">
+									<span class="text-slate-500 text-xs">
+										{{ message.sender?.username?.[0]?.toUpperCase() || '?' }}
+									</span>
+								</div>
+							</div>
+
+							<!-- 消息内容 -->
+							<div 
+								class="flex flex-col max-w-[70%]" 
+								:class="[
+									message.sender?.id === userStore.userInfo?.user_id 
+										? 'items-end' 
+										: 'items-start'
+								]"
 							>
-								<div class="flex items-end space-x-1 max-w-[60%] min-w-0">
-									<!-- 对方头像和消息 -->
-									<template v-if="message.senderId !== userStore.userInfo?.id">
-										<img
-											v-if="message.sender?.avatar"
-											:src="message.sender.avatar"
-											:alt="message.sender?.username || '用户头像'"
-											class="w-8 h-8 rounded-lg hover:rounded-3xl transition-all duration-300"
-										/>
-										<div v-else class="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center">
-											<span class="text-slate-500 text-xs">
-												{{ message.sender?.username?.[0]?.toUpperCase() || '?' }}
-											</span>
-										</div>
+								<!-- 发送者名称 -->
+								<div class="text-xs text-slate-400 mb-1">
+									{{ message.sender?.username }}
+								</div>
 
-										<div
-											class="px-4 py-2 rounded-2xl break-words bg-slate-100 rounded-tl-none w-full overflow-hidden"
-										>
-											<div class="break-all">{{ message.content }}</div>
-										</div>
-									</template>
+								<!-- 消息气泡 -->
+								<div 
+									class="flex items-end gap-2"
+									:class="[
+										message.sender?.id === userStore.userInfo?.user_id 
+											? 'flex-row-reverse' 
+											: 'flex-row'
+									]"
+								>
+									<div 
+										class="rounded-lg px-3 py-2 break-words"
+										:class="[
+											message.sender?.id === userStore.userInfo?.user_id 
+												? 'bg-blue-500 text-white' 
+												: 'bg-slate-100 text-slate-700'
+										]"
+									>
+										{{ message.content }}
+									</div>
 
-									<!-- 自己的消息和头像 -->
-									<template v-else>
-										<div
-											class="px-4 py-2 rounded-2xl break-words bg-primary text-primary-foreground rounded-tr-none w-full overflow-hidden"
-										>
-											<div class="break-all">{{ message.content }}</div>
-										</div>
-
-										<div class="text-xs text-slate-400">
-											<span v-if="message.status === 'SENDING'" class="animate-spin">
-												<Loader2Icon class="w-3 h-3" />
-											</span>
-											<span v-else-if="message.status === 'SENT'">
-												<CheckIcon class="w-3 h-3" />
-											</span>
-											<span v-else-if="message.status === 'DELIVERED'">
-												<CheckCheckIcon class="w-3 h-3" />
-											</span>
-											<span v-else-if="message.status === 'FAILED'" class="text-red-500">
-												<XIcon class="w-3 h-3" />
-											</span>
-										</div>
-
-										<img
-											v-if="userStore.userInfo?.avatar"
-											:src="userStore.userInfo.avatar"
-											:alt="userStore.userInfo.username"
-											class="w-8 h-8 rounded-lg hover:rounded-3xl transition-all duration-300"
-										/>
-										<div v-else class="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center">
-											<span class="text-slate-500 text-xs">
-												{{ userStore.userInfo?.username?.[0]?.toUpperCase() || '?' }}
-											</span>
-										</div>
-									</template>
+									<!-- 消息状态（只在自己发送的消息上显示） -->
+									<div 
+										v-if="message.sender?.id === userStore.userInfo?.user_id"
+										class="text-xs text-slate-400 flex items-center"
+									>
+										<span v-if="message.status === 'SENDING'" class="animate-spin">
+											<Loader2Icon class="w-3 h-3" />
+										</span>
+										<span v-else-if="message.status === 'SENT'">
+											<CheckIcon class="w-3 h-3" />
+										</span>
+										<span v-else-if="message.status === 'DELIVERED'">
+											<CheckCheckIcon class="w-3 h-3" />
+										</span>
+										<span v-else-if="message.status === 'FAILED'" class="text-red-500">
+											<XIcon class="w-3 h-3" />
+											<button 
+												class="ml-1 hover:text-red-600" 
+												@click="handleResend(message.id)"
+											>
+												<RefreshCwIcon class="w-3 h-3" />
+											</button>
+										</span>
+									</div>
 								</div>
 							</div>
 						</div>
-					</div>
+					</template>
 				</div>
 
 				<!-- 在消息列表和输入框之间显示正在输入的用户 -->
@@ -265,11 +280,12 @@ const messageStore = useMessageStore()
 const route = useRoute();
 const router = useRouter();
 
-const messageGroups = computed(() => 
-	selectedChat.value 
-		? messageStore.getMessagesByChat(selectedChat.value.id)
-		: []
-)
+const messageGroups = computed(() => {
+	if (!selectedChat.value) return [];
+	const messages = messageStore.getMessagesByChat(selectedChat.value.id);
+	console.log('Current messages:', messages);
+	return messages;
+});
 
 const messageList = ref<HTMLElement | null>(null);
 
@@ -312,7 +328,7 @@ const getOtherParticipant = async (chat: ChatInfo) => {
 			participantsCache.value.set(chat.id, participants);
 
 			const otherParticipant = participants.find(p => p.user_id !== userStore.userInfo?.user_id);
-			console.log(TAG, '获取聊天参与者:', otherParticipant);
+			// console.log(TAG, '获取聊天参与者:', otherParticipant);
 			if (otherParticipant) {
 				otherParticipants.value.set(chat.id, {
 					username: otherParticipant.username,
@@ -580,11 +596,12 @@ const scrollToBottom = () => {
 };
 
 // 监听消息变化，自动滚动到底部
-watch(messageGroups, () => {
+watch(messageGroups, (newMessages) => {
+	console.log('Messages updated:', newMessages);
 	nextTick(() => {
 		scrollToBottom();
 	});
-});
+}, { deep: true });
 
 // 在进入页面时清除该页面聊天的未读数
 onMounted(() => {

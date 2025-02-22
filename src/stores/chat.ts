@@ -40,7 +40,18 @@ export const useChatStore = defineStore("chat", {
 		connected: false,
 		chats: new Map<number, ChatInfo>(),
 		initialized: false,
+		_lastUnreadTotal: 0, // 添加一个内部状态来跟踪上一次的未读总数
 	}),
+
+	getters: {
+		unreadTotal: (state) => {
+			let total = 0;
+			state.chats.forEach((chat) => {
+				total += chat.unreadCount || 0;
+			});
+			return total;
+		},
+	},
 
 	actions: {
 		initSocket() {
@@ -108,10 +119,20 @@ export const useChatStore = defineStore("chat", {
 			this.chats.delete(chatId);
 		},
 
+		// 私有方法：只在未读总数真正变化时触发事件
+		_emitUnreadUpdate() {
+			const currentTotal = this.unreadTotal;
+			if (currentTotal !== this._lastUnreadTotal) {
+				this._lastUnreadTotal = currentTotal;
+				eventBus.emit("unread-count-updated", currentTotal);
+			}
+		},
+
 		clearUnread(chatId: number) {
 			const chat = this.chats.get(chatId);
-			if (chat) {
+			if (chat && chat.unreadCount > 0) {
 				chat.unreadCount = 0;
+				this._emitUnreadUpdate();
 			}
 		},
 
@@ -125,7 +146,8 @@ export const useChatStore = defineStore("chat", {
 		incrementUnread(chatId: number) {
 			const chat = this.chats.get(chatId);
 			if (chat) {
-				chat.unreadCount++;
+				chat.unreadCount = (chat.unreadCount || 0) + 1;
+				this._emitUnreadUpdate();
 			}
 		},
 
