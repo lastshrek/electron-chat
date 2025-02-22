@@ -32,6 +32,9 @@ let mainWindow: BrowserWindow | null = null;
 // 全局数据库实例
 let db: Database.Database | null = null;
 
+// 添加窗口管理
+const meetingWindows = new Map<string, BrowserWindow>();
+
 // 初始化数据库
 const initDatabase = () => {
 	try {
@@ -353,7 +356,8 @@ const setupIPCHandlers = () => {
 	});
 };
 
-function createWindow() {
+// 修改 createWindow 函数，添加新窗口处理
+const createWindow = async () => {
 	const screenSize = screen.getPrimaryDisplay().workAreaSize;
 
 	mainWindow = new BrowserWindow({
@@ -384,10 +388,101 @@ function createWindow() {
 		mainWindow.loadFile(join(process.env.BUILD_APP, "index.html"));
 	}
 
-	// Make all links open with the browser, not with the application
+	// 处理新窗口打开
 	mainWindow.webContents.setWindowOpenHandler(({url}) => {
-		if (url.startsWith("https:")) shell.openExternal(url);
-		return {action: "deny"};
+		// 检查是否是会议URL
+		if (url.includes("/meeting/")) {
+			const meetingId = url.split("/").pop() || "";
+
+			// 检查会议窗口是否已存在
+			if (meetingWindows.has(meetingId)) {
+				const existingWindow = meetingWindows.get(meetingId);
+				if (existingWindow?.isMinimized()) {
+					existingWindow.restore();
+				}
+				existingWindow?.focus();
+				return {action: "deny"};
+			}
+
+			// 创建新的会议窗口
+			const meetingWindow = new BrowserWindow({
+				width: 1280,
+				height: 720,
+				webPreferences: {
+					nodeIntegration: true,
+					contextIsolation: true,
+					webSecurity: false,
+					sandbox: false,
+					preload: join(__dirname, "preload.js"),
+					webviewTag: true,
+				},
+				parent: mainWindow,
+				title: `会议 - ${meetingId}`,
+			});
+
+			// 存储窗口引用
+			meetingWindows.set(meetingId, meetingWindow);
+
+			// 监听窗口关闭
+			meetingWindow.on("closed", () => {
+				meetingWindows.delete(meetingId);
+				// 通知主窗口会议已关闭
+				mainWindow?.webContents.send("meeting-window-closed");
+			});
+
+			// 为会议窗口设置媒体权限
+			meetingWindow.webContents.session.setPermissionRequestHandler(
+				(webContents, permission, callback) => {
+					const allowedPermissions = ["media", "mediaKeySystem"];
+					if (allowedPermissions.includes(permission)) {
+						callback(true);
+					} else {
+						callback(false);
+					}
+				}
+			);
+
+			// 设置媒体访问检查
+			meetingWindow.webContents.session.setPermissionCheckHandler(
+				(webContents, permission) => {
+					const allowedPermissions = ["media", "mediaKeySystem"];
+					return allowedPermissions.includes(permission);
+				}
+			);
+
+			// 修改 CSP 配置以允许媒体访问
+			meetingWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+				callback({
+					responseHeaders: {
+						...details.responseHeaders,
+						"Content-Security-Policy": [
+							"default-src 'self' 'unsafe-inline' 'unsafe-eval' data: http: https: ws: wss:;" +
+								"connect-src 'self' ws: wss: http: https:;" +
+								"img-src 'self' data: https: http:;" +
+								"script-src 'self' 'unsafe-inline' 'unsafe-eval';" +
+								"style-src 'self' 'unsafe-inline';" +
+								"media-src 'self' blob:;" +
+								"child-src 'self' blob:;",
+						],
+					},
+				});
+			});
+
+			// 加载会议URL
+			if (app.isPackaged) {
+				meetingWindow.loadURL(`${url}`);
+			} else {
+				meetingWindow.loadURL(`${process.env.VITE_DEV_SERVER_URL}/#/meeting/${meetingId}`);
+				// 在开发环境中自动打开开发者工具
+				meetingWindow.webContents.openDevTools();
+			}
+
+			// 阻止默认行为，使用我们自己的窗口
+			return {action: "deny"};
+		}
+
+		// 其他URL使用默认行为
+		return {action: "allow"};
 	});
 
 	// 修改 CSP 配置
@@ -445,7 +540,7 @@ function createWindow() {
 			return allowedPermissions.includes(permission);
 		}
 	);
-}
+};
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
@@ -488,4 +583,14 @@ app.on("render-process-gone", (event, webContents, details) => {
 
 app.on("child-process-gone", (event, details) => {
 	console.error("Child process gone:", details);
+});
+
+// 在应用退出时清理所有会议窗口
+app.on("before-quit", () => {
+	meetingWindows.forEach((window) => {
+		if (!window.isDestroyed()) {
+			window.close();
+		}
+	});
+	meetingWindows.clear();
 });

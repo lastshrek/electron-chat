@@ -97,11 +97,14 @@
                     {{ meeting.status === 'ACTIVE' ? '进行中' : '已结束' }}
                   </span>
                   <button
-                    class="text-blue-500 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    class="text-blue-500 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed group relative"
                     @click="handleJoinMeeting(meeting.id)"
                     :disabled="meeting.status === 'ENDED'"
                   >
                     加入会议
+                    <span class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      将在新窗口中打开
+                    </span>
                   </button>
                 </div>
               </div>
@@ -136,12 +139,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted, markRaw } from 'vue';
 import MainLayout from '@/components/layout/MainLayout.vue';
 import { Video, Plus, Loader2 } from 'lucide-vue-next';
 import { useToast } from '@/components/ui/toast';
 import { authApi } from '@/api/auth';
 import { useRouter } from 'vue-router';
+import { Button } from '@/components/ui/button';
 
 interface Meeting {
   id: string;
@@ -176,6 +180,21 @@ const totalPages = ref(1);
 const totalMeetings = ref(0);
 const { toast } = useToast();
 const router = useRouter();
+
+// 添加状态跟踪当前会议窗口
+const meetingWindow = ref<Window | null>(null);
+
+// 添加会议状态管理
+const MEETING_STATUS_KEY = 'meeting_status';
+
+// 修改状态管理
+const isInMeeting = ref(localStorage.getItem(MEETING_STATUS_KEY) === 'true');
+
+// 修改状态设置函数
+const setMeetingStatus = (status: boolean) => {
+  isInMeeting.value = status;
+  localStorage.setItem(MEETING_STATUS_KEY, status.toString());
+};
 
 // 获取会议列表
 const fetchMeetings = async (page = 1) => {
@@ -226,18 +245,121 @@ const handleCreateMeeting = async () => {
   }
 };
 
-// 加入会议
+// 修改加入会议方法
 const handleJoinMeeting = (meetingId: string) => {
-  router.push(`/meeting/${meetingId}`);
+  // 检查是否已在会议中
+  if (isInMeeting.value) {
+    toast({
+      title: '已在会议中',
+      description: '请先退出当前会议再加入新会议',
+      variant: 'default',
+      action: markRaw(Button),
+      actionProps: {
+        variant: 'outline',
+        size: 'sm',
+        onClick: () => {},
+        children: '我知道了'
+      }
+    });
+    return;
+  }
+
+  try {
+    const meetingUrl = `${window.location.origin}/#/meeting/${meetingId}`;
+
+    // 区分 Electron 和浏览器环境
+    if (window?.electron) {
+      // 标记为已在会议中
+      setMeetingStatus(true);
+
+      // 使用一次性监听器
+      const handleMeetingClosed = () => {
+        setMeetingStatus(false);
+      };
+
+      // 添加事件监听
+      window.electron.ipcRenderer.on('meeting-window-closed', handleMeetingClosed);
+      
+      // Electron 环境下直接打开链接，主进程会处理
+      window.open(meetingUrl);
+    } else {
+      // 浏览器环境下的处理保持不变
+      const windowFeatures = 'width=1280,height=720,resizable=yes';
+      meetingWindow.value = window.open(meetingUrl, '_blank', windowFeatures);
+
+      if (meetingWindow.value === null) {
+        toast({
+          title: '窗口被拦截',
+          description: '请允许浏览器打开弹出窗口，然后重试',
+          variant: 'default',
+          duration: 5000,
+          action: markRaw(Button),
+          actionProps: {
+            variant: 'outline',
+            size: 'sm',
+            onClick: () => handleJoinMeeting(meetingId),
+            children: '重试'
+          }
+        });
+        return;
+      }
+
+      // 监听窗口状态
+      const checkWindowInterval = setInterval(() => {
+        if (meetingWindow.value?.closed) {
+          clearInterval(checkWindowInterval);
+          meetingWindow.value = null;
+          setMeetingStatus(false);
+        }
+      }, 1000);
+
+      setMeetingStatus(true);
+    }
+  } catch (error) {
+    console.error('打开会议窗口失败:', error);
+    toast({
+      title: '打开失败',
+      description: '无法打开会议窗口，请稍后重试',
+      variant: 'destructive'
+    });
+    setMeetingStatus(false);
+  }
 };
+
+// 添加提示组件
+const showPopupGuide = () => {
+  toast({
+    title: '提示',
+    description: '请确保您的浏览器允许打开弹出窗口',
+    variant: 'default',
+    duration: 5000
+  });
+};
+
+// 组件卸载时清理
+onUnmounted(() => {
+  // 关闭会议窗口
+  if (meetingWindow.value && !meetingWindow.value.closed) {
+    meetingWindow.value.close();
+  }
+  
+  // 重置状态
+  setMeetingStatus(false);
+});
 
 // 格式化日期
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleString();
 };
 
-// 组件挂载时获取会议列表
+// 组件挂载时检查状态
 onMounted(() => {
   fetchMeetings();
+  showPopupGuide();
+  
+  // 如果页面刷新时发现有会议状态，但实际没有会议窗口，则重置状态
+  if (isInMeeting.value && (!meetingWindow.value || meetingWindow.value.closed)) {
+    setMeetingStatus(false);
+  }
 });
 </script> 
