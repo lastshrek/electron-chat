@@ -69,7 +69,6 @@ export class WebSocketService {
 
 		// 连接相关事件
 		this.socket.on(WebSocketEvent.CONNECT, () => {
-			console.log("Socket.IO connected");
 			toast({
 				title: "连接成功",
 				description: "已建立实时通信连接",

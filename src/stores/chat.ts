@@ -71,7 +71,6 @@ export const useChatStore = defineStore("chat", {
 			}
 
 			try {
-				console.log("开始初始化 socket 连接");
 				// 创建 socket 实例
 				this.socket = io(import.meta.env.VITE_WS_URL, {
 					auth: {
@@ -159,7 +158,6 @@ export const useChatStore = defineStore("chat", {
 		},
 
 		async initialize() {
-			console.log("开始初始化聊天 store");
 			if (this.initialized) {
 				console.log("聊天 store 已经初始化过");
 				return;
@@ -168,7 +166,6 @@ export const useChatStore = defineStore("chat", {
 			try {
 				await this.loadChats();
 				this.initialized = true;
-				console.log("聊天 store 初始化完成");
 			} catch (error) {
 				console.error("聊天 store 初始化失败:", error);
 				throw error;
@@ -177,9 +174,7 @@ export const useChatStore = defineStore("chat", {
 
 		async loadChats() {
 			try {
-				console.log("开始加载聊天列表");
 				const response = await chatApi.getChats({limit: 20, page: 1});
-				console.log("获取聊天列表成功:", response);
 
 				const chats = response as unknown as ChatResponse;
 
@@ -212,8 +207,6 @@ export const useChatStore = defineStore("chat", {
 						otherUser: chat.otherUser,
 					});
 				}
-
-				console.log("聊天列表加载完成，数量:", this.chats.size);
 			} catch (error) {
 				console.error("加载聊天列表失败:", error);
 				throw error;

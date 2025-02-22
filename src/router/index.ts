@@ -10,52 +10,71 @@
  */
 import {createRouter, createWebHashHistory} from "vue-router";
 import {useUserStore} from "@/stores/user";
+import type {RouteRecordRaw} from "vue-router";
+
+const routes: RouteRecordRaw[] = [
+	{
+		path: "/",
+		redirect: "/home",
+	},
+	{
+		path: "/home",
+		name: "home",
+		component: () => import("@/views/Home/Home.vue"),
+		children: [
+			{
+				path: "chat/:chatId?", // 可选的聊天ID参数
+				name: "chat",
+				component: () => import("@/views/Home/Home.vue"),
+			},
+		],
+		meta: {requiresAuth: true},
+	},
+	{
+		path: "/login",
+		name: "login",
+		component: () => import("@/views/Login/Login.vue"),
+		meta: {requiresAuth: false},
+	},
+	{
+		path: "/register",
+		name: "register",
+		component: () => import("@/views/Register/Register.vue"),
+		meta: {requiresAuth: false},
+	},
+	{
+		path: "/contacts",
+		name: "contacts",
+		component: () => import("@/views/Contacts/Contacts.vue"),
+		meta: {
+			requiresAuth: true,
+		},
+	},
+	{
+		path: "/meeting",
+		name: "Meeting",
+		component: () => import("@/views/Meeting/Meeting.vue"),
+		meta: {
+			requiresAuth: true,
+		},
+	},
+	{
+		path: "/meeting/:id",
+		name: "MeetingRoom",
+		component: () => import("@/views/Meeting/MeetingRoom.vue"),
+		meta: {
+			requiresAuth: true,
+		},
+	},
+	{
+		path: "/:pathMatch(.*)*",
+		redirect: "/",
+	},
+] as RouteRecordRaw[];
 
 const router = createRouter({
 	history: createWebHashHistory(),
-	routes: [
-		{
-			path: "/",
-			redirect: "/home",
-		},
-		{
-			path: "/home",
-			name: "home",
-			component: () => import("@/views/Home/Home.vue"),
-			children: [
-				{
-					path: "chat/:chatId?", // 可选的聊天ID参数
-					name: "chat",
-					component: () => import("@/views/Home/Home.vue"),
-				},
-			],
-			meta: {requiresAuth: true},
-		},
-		{
-			path: "/login",
-			name: "login",
-			component: () => import("@/views/Login/Login.vue"),
-			meta: {requiresAuth: false},
-		},
-		{
-			path: "/register",
-			name: "register",
-			component: () => import("@/views/Register/Register.vue"),
-			meta: {requiresAuth: false},
-		},
-		{
-			path: "/contacts",
-			name: "contacts",
-			component: () => import("@/views/Contacts/Contacts.vue"),
-			meta: {
-				requiresAuth: true,
-			},
-		},
-		{
-			path: "/:pathMatch(.*)*",
-			redirect: "/",
-		},
-	],
+	routes,
 });
 
 // 路由守卫

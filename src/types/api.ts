@@ -192,3 +192,27 @@ export interface DepartmentUser {
 	avatar: string;
 	dutyName: string | null;
 }
+
+export interface Meeting {
+	id: string;
+	title: string;
+	status: "ACTIVE" | "ENDED";
+	startTime: string;
+	creator: {
+		id: number;
+		username: string;
+		avatar: string;
+	};
+	participants: Array<{
+		user: {
+			id: number;
+			username: string;
+			avatar: string;
+		};
+		role: "HOST" | "PARTICIPANT";
+		joinTime: string;
+	}>;
+	_count: {
+		participants: number;
+	};
+}

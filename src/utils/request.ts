@@ -46,7 +46,6 @@ request.interceptors.response.use(
 	(response: AxiosResponse<ApiResponse<any>>) => {
 		// 处理成功响应
 		if (response.status === 200 || response.status === 201) {
-			console.log("Response data:", response.data);
 			return response.data.data;
 		}
 

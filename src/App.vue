@@ -63,7 +63,6 @@ const initializeChat = async () => {
 onMounted(() => {
 	if (window.electron?.ipcRenderer) {
 		window.electron.ipcRenderer.on('friendsSynced', async () => {
-			console.log("收到好友同步完成事件");
 			await initializeChat();
 		});
 	}

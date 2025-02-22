@@ -400,11 +400,51 @@ function createWindow() {
 						"connect-src 'self' ws: wss: http: https:;" +
 						"img-src 'self' data: https: http:;" +
 						"script-src 'self' 'unsafe-inline' 'unsafe-eval';" +
-						"style-src 'self' 'unsafe-inline';",
+						"style-src 'self' 'unsafe-inline';" +
+						"media-src 'self' blob:;" +
+						"child-src 'self' blob:;",
 				],
 			},
 		});
 	});
+
+	// 处理媒体权限请求
+	mainWindow.webContents.session.setPermissionRequestHandler(
+		(webContents, permission, callback) => {
+			const allowedPermissions = [
+				"media",
+				"mediaKeySystem",
+				"geolocation",
+				"notifications",
+				"fullscreen",
+				"pointerLock",
+			];
+
+			if (allowedPermissions.includes(permission)) {
+				console.log(`允许权限: ${permission}`);
+				callback(true);
+			} else {
+				console.log(`拒绝权限: ${permission}`);
+				callback(false);
+			}
+		}
+	);
+
+	// 处理媒体访问请求
+	mainWindow.webContents.session.setPermissionCheckHandler(
+		(webContents, permission, requestingOrigin) => {
+			const allowedPermissions = [
+				"media",
+				"mediaKeySystem",
+				"geolocation",
+				"notifications",
+				"fullscreen",
+				"pointerLock",
+			];
+
+			return allowedPermissions.includes(permission);
+		}
+	);
 }
 
 // This method will be called when Electron has finished

@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useUserStore } from '@/stores/user'
-import { useRouter } from 'vue-router'
-import { MessageSquare, Users, Plus, Settings, LogOut } from 'lucide-vue-next'
+import { useRouter, useRoute, RouterLink } from 'vue-router'
+import { MessageSquare, Users, Plus, Settings, LogOut, Video } from 'lucide-vue-next'
 import { eventBus } from '@/utils/eventBus'
 import { authApi } from '@/api/auth'
 import { useChatStore } from '@/stores/chat'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const chatStore = useChatStore()
 
@@ -74,6 +75,28 @@ const handleLogout = async () => {
 	router.push('/login')
 }
 
+// 导航配置
+const navigation = [
+	{
+		path: '/chat',
+		icon: MessageSquare,
+		title: '消息'
+	},
+	{
+		path: '/contacts',
+		icon: Users,
+		title: '通讯录'
+	}
+]
+
+// 默认头像
+const defaultAvatar = 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'
+
+// 处理头像点击
+const handleAvatarClick = () => {
+	// 实现头像点击逻辑
+}
+
 onUnmounted(() => {
 	eventBus.off('friend-request')
 	eventBus.off('clear-friend-request-count')
@@ -83,78 +106,55 @@ onUnmounted(() => {
 <template>
 	<div class="h-screen flex">
 		<!-- 左侧导航栏 -->
-		<div class="w-16 bg-slate-900 flex flex-col items-center shrink-0">
-			<!-- 用户头像 -->
-			<div class="py-4">
+		<div class="w-16 bg-slate-800 flex flex-col items-center py-4 space-y-4">
+			<!-- 头像 -->
+			<div class="relative">
 				<img
-					:src="userStore.userInfo?.avatar"
-					:alt="userStore.userInfo?.username || 'avatar'"
-					class="w-10 h-10 rounded-lg hover:rounded-3xl transition-all duration-300"
+					:src="userStore.userInfo?.avatar || defaultAvatar"
+					:alt="userStore.userInfo?.username"
+					class="w-10 h-10 rounded-full cursor-pointer"
+					@click="handleAvatarClick"
 				/>
+				<!-- 未读消息提示 -->
+				<div
+					v-if="unreadCount > 0"
+					class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center"
+				>
+					<span class="text-xs text-white">{{ unreadCount }}</span>
+				</div>
 			</div>
 
-			<!-- 导航菜单 -->
-			<div class="flex-1 w-full">
-				<nav class="flex flex-col items-center space-y-4 py-4">
-					<button
-						:class="[
-							'w-10 h-10 rounded-lg text-slate-400 inline-flex items-center justify-center hover:text-white hover:bg-slate-800 hover:rounded-3xl transition-all duration-300 relative',
-							activeNav === 'home' ? 'text-white bg-slate-800' : 'text-slate-400',
-						]"
-						@click="handleNavClick('home')"
-					>
-						<MessageSquare class="h-5 w-5" />
-						<!-- 添加未读消息数量显示 -->
-						<div
-							v-if="unreadCount > 0"
-							class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs"
-						>
-							{{ unreadCount }}
-						</div>
-					</button>
-					<button
-						:class="[
-							'w-10 h-10 rounded-lg text-slate-400 inline-flex items-center justify-center hover:text-white hover:bg-slate-800 hover:rounded-3xl transition-all duration-300 relative',
-							activeNav === 'contacts' && 'text-white bg-slate-800 rounded-3xl',
-						]"
-						@click="handleNavClick('contacts')"
-						title="联系人"
-					>
-						<Users class="h-5 w-5" />
-						<!-- 添加好友请求数量显示 -->
-						<div
-							v-if="friendRequestCount > 0"
-							class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs"
-						>
-							{{ friendRequestCount }}
-						</div>
-					</button>
-				</nav>
-			</div>
+			<!-- 导航按钮 -->
+			<RouterLink
+				v-for="nav in navigation"
+				:key="nav.path"
+				:to="nav.path"
+				class="w-10 h-10 rounded-lg flex items-center justify-center"
+				:class="{
+					'bg-slate-700 text-white': route.path === nav.path,
+					'text-slate-400 hover:text-white hover:bg-slate-700/50': route.path !== nav.path
+				}"
+				:title="nav.title"
+			>
+				<component :is="nav.icon" class="w-5 h-5" />
+			</RouterLink>
 
-			<!-- 底部按钮组 -->
-			<div class="py-4 flex flex-col items-center space-y-4">
-				<button
-					class="w-10 h-10 rounded-lg text-slate-400 inline-flex items-center justify-center hover:text-white hover:bg-slate-800 hover:rounded-3xl transition-all duration-300"
-				>
-					<Plus class="h-5 w-5" />
-				</button>
-				<button
-					class="w-10 h-10 rounded-lg text-slate-400 inline-flex items-center justify-center hover:text-white hover:bg-slate-800 hover:rounded-3xl transition-all duration-300"
-				>
-					<Settings class="h-5 w-5" />
-				</button>
-				<button
-					class="w-10 h-10 rounded-lg text-slate-400 inline-flex items-center justify-center hover:text-white hover:bg-slate-800 hover:rounded-3xl transition-all duration-300"
-					@click="handleLogout"
-				>
-					<LogOut class="h-5 w-5" />
-				</button>
-			</div>
+			<!-- 在线会议按钮 -->
+			<RouterLink
+				to="/meeting"
+				class="w-10 h-10 rounded-lg flex items-center justify-center"
+				:class="{
+					'bg-slate-700 text-white': route.path === '/meeting',
+					'text-slate-400 hover:text-white hover:bg-slate-700/50': route.path !== '/meeting'
+				}"
+				title="在线会议"
+			>
+				<Video class="w-5 h-5" />
+			</RouterLink>
 		</div>
 
-		<!-- 内容区域 - 添加 min-w-0 防止子元素溢出 -->
-		<div class="flex-1 flex min-w-0">
+		<!-- 主内容区域 -->
+		<div class="flex-1 flex flex-col overflow-hidden">
 			<slot></slot>
 		</div>
 	</div>

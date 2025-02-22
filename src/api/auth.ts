@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:14:45
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-20 19:49:28
+ * @LastEditTime : 2025-02-22 19:33:07
  * @FilePath     : /src/api/auth.ts
  * @Description  : auth api
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -23,6 +23,69 @@ import type {
 	OrganizationResponse,
 	DepartmentUser,
 } from "@/types/api";
+
+interface MeetingParticipant {
+	id: number;
+	meetingId: string;
+	userId: number;
+	joinTime: string;
+	leaveTime: string | null;
+	role: "HOST" | "PARTICIPANT";
+	user: {
+		id: number;
+		username: string;
+		avatar: string;
+	};
+}
+
+interface Meeting {
+	id: string;
+	title: string;
+	createdBy: number;
+	status: "ACTIVE" | "ENDED";
+	startTime: string;
+	endTime: string | null;
+	createdAt: string;
+	updatedAt: string;
+	participants: MeetingParticipant[];
+	creator: {
+		id: number;
+		username: string;
+		avatar: string;
+	};
+}
+
+interface MeetingListResponse {
+	meetings: Array<{
+		id: string;
+		title: string;
+		status: "ACTIVE" | "ENDED";
+		startTime: string;
+		creator: {
+			id: number;
+			username: string;
+			avatar: string;
+		};
+		participants: Array<{
+			user: {
+				id: number;
+				username: string;
+				avatar: string;
+			};
+			role: "HOST" | "PARTICIPANT";
+			joinTime: string;
+		}>;
+		_count: {
+			participants: number;
+		};
+	}>;
+	pagination: {
+		page: number;
+		limit: number;
+		total: number;
+		totalPages: number;
+	};
+}
 
 export const authApi = {
 	// 登录
@@ -89,6 +152,21 @@ export const authApi = {
 	// 获取部门用户列表
 	getDepartmentUsers: (departmentId: string) => {
 		return request.get<DepartmentUser[]>(`/organizations/${departmentId}/users`);
+	},
+
+	// 创建会议
+	createMeeting: (title: string) => {
+		return request.post<Meeting>("/meetings", {title});
+	},
+
+	// 获取会议列表
+	getMeetings: (params?: {page?: number; limit?: number}) => {
+		return request.get<MeetingListResponse>("/meetings", {params});
+	},
+
+	// 获取会议信息
+	getMeetingInfo: (meetingId: string) => {
+		return request.get<Meeting>(`/meetings/${meetingId}`);
 	},
 };
 

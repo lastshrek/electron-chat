@@ -54,16 +54,16 @@ export default defineConfig(({command, mode}) => {
 		optimizeDeps: {
 			exclude: ["better-sqlite3"], // 排除 better-sqlite3 的依赖优化
 		},
+		server: {
+			host: "0.0.0.0", // 监听所有网络接口
+			port: 5173, // 默认端口
+		},
 	};
 
 	// Web 模式配置
 	if (isWeb) {
 		return {
 			...baseConfig,
-			server: {
-				port: 5173,
-				strictPort: true,
-			},
 		};
 	}
 
