@@ -6,11 +6,13 @@ import { MessageSquare, Users, Plus, Settings, LogOut, Video } from 'lucide-vue-
 import { eventBus } from '@/utils/eventBus'
 import { authApi } from '@/api/auth'
 import { useChatStore } from '@/stores/chat'
+import { useToast } from '@/components/ui/toast'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const chatStore = useChatStore()
+const { toast } = useToast()
 
 // 当前激活的导航项
 const activeNav = ref(router.currentRoute.value.name)
@@ -71,8 +73,21 @@ const handleNavClick = (nav: string) => {
 }
 
 const handleLogout = async () => {
-	await userStore.logout()
-	router.push('/login')
+	try {
+		await userStore.logout()
+		toast({
+			title: '退出成功',
+			description: '您已安全退出登录'
+		})
+		router.push('/login')
+	} catch (error) {
+		console.error('退出失败:', error)
+		toast({
+			variant: 'destructive',
+			title: '退出失败',
+			description: '请稍后重试'
+		})
+	}
 }
 
 // 导航配置
@@ -86,6 +101,16 @@ const navigation = [
 		path: '/contacts',
 		icon: Users,
 		title: '通讯录'
+	},
+	{
+		path: '/meeting',
+		icon: Video,
+		title: '会议'
+	},
+	{
+		path: '/settings',
+		icon: Settings,
+		title: '设置'
 	}
 ]
 
@@ -106,55 +131,62 @@ onUnmounted(() => {
 <template>
 	<div class="h-screen flex">
 		<!-- 左侧导航栏 -->
-		<div class="w-16 bg-slate-800 flex flex-col items-center py-4 space-y-4">
-			<!-- 头像 -->
-			<div class="relative">
-				<img
-					:src="userStore.userInfo?.avatar || defaultAvatar"
-					:alt="userStore.userInfo?.username"
-					class="w-10 h-10 rounded-full cursor-pointer"
-					@click="handleAvatarClick"
-				/>
-				<!-- 未读消息提示 -->
-				<div
-					v-if="unreadCount > 0"
-					class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center"
-				>
-					<span class="text-xs text-white">{{ unreadCount }}</span>
+		<div class="w-16 bg-[#1E2736] flex flex-col">
+			<!-- 顶部用户头像 -->
+			<div class="p-2 border-b border-[#2A3441]">
+				<div class="relative group">
+					<img 
+						:src="userStore.userInfo?.avatar || '/default-avatar.png'" 
+						:alt="userStore.userInfo?.username"
+						class="w-12 h-12 rounded-lg object-cover bg-[#2A3441] cursor-pointer"
+					/>
+					
+					<!-- 用户信息悬浮提示 -->
+					<div class="absolute left-full ml-2 p-2 bg-black/75 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+						<div class="text-white font-medium">
+							{{ userStore.userInfo?.username || '未登录' }}
+						</div>
+						<div class="text-xs text-[#8B9BB4]">在线</div>
+					</div>
 				</div>
 			</div>
 
-			<!-- 导航按钮 -->
-			<RouterLink
-				v-for="nav in navigation"
-				:key="nav.path"
-				:to="nav.path"
-				class="w-10 h-10 rounded-lg flex items-center justify-center"
-				:class="{
-					'bg-slate-700 text-white': route.path === nav.path,
-					'text-slate-400 hover:text-white hover:bg-slate-700/50': route.path !== nav.path
-				}"
-				:title="nav.title"
-			>
-				<component :is="nav.icon" class="w-5 h-5" />
-			</RouterLink>
+			<!-- 导航菜单 -->
+			<nav class="flex-1 p-2 space-y-2">
+				<router-link 
+					v-for="item in navigation" 
+					:key="item.path"
+					:to="item.path"
+					class="block w-12 h-12 rounded-lg flex items-center justify-center text-[#8B9BB4] hover:bg-[#2A3441] hover:text-white transition-colors group relative"
+					:class="{ 'bg-[#2A3441] !text-white': route.path === item.path }"
+				>
+					<component :is="item.icon" class="w-5 h-5" />
+					
+					<!-- Slack风格的悬浮提示 -->
+					<div class="absolute left-full ml-2 px-2 py-1 bg-black/75 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+						{{ item.title }}
+					</div>
+				</router-link>
+			</nav>
 
-			<!-- 在线会议按钮 -->
-			<RouterLink
-				to="/meeting"
-				class="w-10 h-10 rounded-lg flex items-center justify-center"
-				:class="{
-					'bg-slate-700 text-white': route.path === '/meeting',
-					'text-slate-400 hover:text-white hover:bg-slate-700/50': route.path !== '/meeting'
-				}"
-				title="在线会议"
-			>
-				<Video class="w-5 h-5" />
-			</RouterLink>
+			<!-- 底部退出按钮 -->
+			<div class="p-2 border-t border-[#2A3441]">
+				<button 
+					@click="handleLogout"
+					class="w-12 h-12 rounded-lg flex items-center justify-center text-[#8B9BB4] hover:bg-[#2A3441] hover:text-white transition-colors group relative"
+				>
+					<LogOut class="w-5 h-5" />
+					
+					<!-- 退出按钮的悬浮提示 -->
+					<div class="absolute left-full ml-2 px-2 py-1 bg-black/75 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+						退出登录
+					</div>
+				</button>
+			</div>
 		</div>
 
 		<!-- 主内容区域 -->
-		<div class="flex-1 flex flex-col overflow-hidden">
+		<div class="flex-1 bg-[#F8FAFC] overflow-auto">
 			<slot></slot>
 		</div>
 	</div>
@@ -177,5 +209,15 @@ onUnmounted(() => {
 
 :deep(.overflow-y-auto::-webkit-scrollbar-thumb:hover) {
 	background-color: rgba(156, 163, 175, 0.8);
+}
+
+/* 添加过渡效果 */
+.group:hover .group-hover\:opacity-100 {
+	transition-delay: 150ms;
+}
+
+/* 确保悬浮提示在其他元素之上 */
+.absolute {
+	z-index: 50;
 }
 </style>

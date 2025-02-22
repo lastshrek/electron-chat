@@ -21,13 +21,6 @@ const routes: RouteRecordRaw[] = [
 		path: "/home",
 		name: "home",
 		component: () => import("@/views/Home/Home.vue"),
-		children: [
-			{
-				path: "chat/:chatId?", // 可选的聊天ID参数
-				name: "chat",
-				component: () => import("@/views/Home/Home.vue"),
-			},
-		],
 		meta: {requiresAuth: true},
 	},
 	{

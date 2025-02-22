@@ -46,6 +46,11 @@
 		"rebuild": "electron-rebuild -f -w better-sqlite3"
 	},
 	"dependencies": {
+		"@tiptap/extension-collaboration": "^2.11.5",
+		"@tiptap/extension-collaboration-cursor": "^2.11.5",
+		"@tiptap/pm": "^2.11.5",
+		"@tiptap/starter-kit": "^2.11.5",
+		"@tiptap/vue-3": "^2.11.5",
 		"axios": "^1.7.9",
 		"better-sqlite3": "^11.8.1",
 		"class-variance-authority": "^0.7.1",
@@ -53,6 +58,9 @@
 		"lucide-vue-next": "^0.475.0",
 		"mediasoup-client": "^3.8.2",
 		"pinyin-pro": "^3.26.0",
+		"prosemirror-model": "^1.24.1",
+		"prosemirror-state": "^1.4.3",
+		"prosemirror-view": "^1.38.0",
 		"radix-vue": "^1.9.15",
 		"tailwind-merge": "^3.0.1",
 		"tailwindcss-animate": "^1.0.7",
