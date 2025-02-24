@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:28:39
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-22 23:46:36
+ * @LastEditTime : 2025-02-24 15:59:41
  * @FilePath     : /src/views/Home/Home.vue
  * @Description  : 
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -19,8 +19,19 @@
 			<!-- 会话列表 -->
 			<div class="flex-1 overflow-y-auto min-h-0">
 				<div class="p-2 space-y-1">
+					<!-- 无会话时显示提示 -->
+					<div 
+						v-if="chats.size === 0" 
+						class="flex flex-col items-center justify-center h-[calc(100vh-3.5rem)] text-gray-400"
+					>
+						<MessageSquare class="w-12 h-12 mb-4" />
+						<p class="text-sm">暂无会话</p>
+						<p class="text-xs mt-2">去联系人页面添加好友开始聊天吧</p>
+					</div>
+
 					<!-- 会话列表项 -->
 					<div
+						v-else
 						v-for="chat in Array.from(chats.values())"
 						:key="chat.id"
 						class="p-3 rounded-lg hover:bg-slate-100 cursor-pointer flex items-center space-x-3"
@@ -56,11 +67,6 @@
 								{{ chat.lastMessage?.content || '暂无消息' }}
 							</div>
 						</div>
-					</div>
-
-					<!-- 无会话时显示提示 -->
-					<div v-if="chats.size === 0" class="p-4 text-center text-slate-400 text-sm">
-						暂无会话
 					</div>
 				</div>
 			</div>
@@ -265,6 +271,7 @@ import {
 	CheckCheckIcon,
 	XIcon,
 	RefreshCwIcon,
+	MessageSquare,
 } from "lucide-vue-next";
 import {useRoute, useRouter} from 'vue-router';
 import { ChatTypingManager } from '@/utils/chat-typing';
@@ -383,27 +390,6 @@ watch(
 	}
 );
 
-// 在模板中使用的计算属性
-const otherParticipantMap = computed(() => {
-	const map = new Map<number, {
-		username: string;
-		avatar: string;
-		user_id: number;
-	} | null>();
-	
-	Array.from(chats.value.values()).forEach(async chat => {
-		const participant = await getOtherParticipant(chat);
-		if (participant) {
-			map.set(chat.id, {
-				username: participant.username,
-				avatar: participant.avatar,
-				user_id: participant.user_id
-			});
-		}
-	});
-	
-	return map;
-});
 
 // 清除缓存的辅助方法
 const clearParticipantCache = (chatId?: number) => {
@@ -500,7 +486,7 @@ const sendMessage = async () => {
 
 	const success = await messageService.sendTextMessage(
 		selectedChat.value.id,
-		otherParticipant.user_id,
+		otherParticipant.id,
 		message.value
 	);
 
@@ -544,13 +530,13 @@ const handleFileUpload = async (event: Event) => {
 	if (file.type.startsWith("image/")) {
 		success = await messageService.sendImageMessage(
 			selectedChat.value.id,
-			otherParticipant.user_id,
+			otherParticipant.id,
 			file
 		);
 	} else {
 		success = await messageService.sendFileMessage(
 			selectedChat.value.id,
-			otherParticipant.user_id,
+			otherParticipant.id,
 			file
 		);
 	}

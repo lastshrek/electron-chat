@@ -68,6 +68,14 @@ const routes: RouteRecordRaw[] = [
 		},
 	},
 	{
+		path: "/docs/:id",
+		name: "document-edit",
+		component: () => import("@/views/Docs/DocumentEdit.vue"),
+		meta: {
+			requiresAuth: true,
+		},
+	},
+	{
 		path: "/:pathMatch(.*)*",
 		redirect: "/",
 	},

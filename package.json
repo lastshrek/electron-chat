@@ -48,6 +48,10 @@
 	"dependencies": {
 		"@tiptap/extension-collaboration": "^2.11.5",
 		"@tiptap/extension-collaboration-cursor": "^2.11.5",
+		"@tiptap/extension-history": "^2.11.5",
+		"@tiptap/extension-image": "^2.11.5",
+		"@tiptap/extension-link": "^2.11.5",
+		"@tiptap/extension-placeholder": "^2.11.5",
 		"@tiptap/pm": "^2.11.5",
 		"@tiptap/starter-kit": "^2.11.5",
 		"@tiptap/vue-3": "^2.11.5",
@@ -64,7 +68,11 @@
 		"radix-vue": "^1.9.15",
 		"tailwind-merge": "^3.0.1",
 		"tailwindcss-animate": "^1.0.7",
-		"vue": "^3.5.10"
+		"vue": "^3.5.10",
+		"x-data-spreadsheet": "^1.1.9",
+		"y-prosemirror": "^1.2.2",
+		"y-websocket": "^2.1.0",
+		"yjs": "^13.6.23"
 	},
 	"devDependencies": {
 		"@electron/rebuild": "^3.7.1",
@@ -79,6 +87,7 @@
 		"electron-builder": "^25.0.5",
 		"electron-devtools-installer": "^3.2.0",
 		"gh_deploy": "github:heliomarpm/gh_deploy",
+		"less": "^4.2.2",
 		"mitt": "^3.0.1",
 		"open": "^10.1.0",
 		"pinia": "^3.0.1",

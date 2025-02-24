@@ -48,6 +48,12 @@ export default defineConfig(({command, mode}) => {
 			rollupOptions: {
 				external: ["better-sqlite3"], // 将 better-sqlite3 标记为外部模块
 			},
+			assetsDir: "assets",
+			rollupOptions: {
+				input: {
+					main: fileURLToPath(new URL("./index.html", import.meta.url)),
+				},
+			},
 		},
 		plugins: [vue()],
 		clearScreen: true,
@@ -58,6 +64,7 @@ export default defineConfig(({command, mode}) => {
 			host: "0.0.0.0", // 监听所有网络接口
 			port: 5173, // 默认端口
 		},
+		publicDir: "public",
 	};
 
 	// Web 模式配置
