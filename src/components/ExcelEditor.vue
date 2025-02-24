@@ -126,19 +126,17 @@ const initSpreadsheet = () => {
   // 监听单元格编辑事件
   spreadsheet.value.on('cell-edited', (text: any, ri: any, ci: any) => {
     console.log(TAG, 'cell-edited:', text, ri, ci)
-    const test = spreadsheet.value.cellStyle(ri, ci)
-    console.log(TAG, 'test:', test)
+    
+    // 构建操作对象
     const operation: CellOperation = {
       type: 'updateCell',
       row: ri,
       column: ci,
       content: text,
-      style: test,
+      style: null, // 暂时不处理样式
       userId: userStore.userInfo?.id || 0,
     }
-    if (test) {
-      operation.style = test
-    }
+
     // 发送操作
     socket.value?.emit('document:operation', {
       documentId: props.documentId,
@@ -165,7 +163,9 @@ const showEditingIndicator = (
     currentUserId: userStore.userInfo?.id,
     isCurrentUser: userId === userStore.userInfo?.id,
     activeUsers: activeUsers.value,
-    user
+    user,
+    row,
+    column
   })
 
   // 如果是当前用户的操作，不显示提示
@@ -173,20 +173,21 @@ const showEditingIndicator = (
 
   // 优先使用传入的用户信息，如果没有再从 activeUsers 中查找
   const userInfo = user || activeUsers.value.find(u => u.userId === userId)
-  if (!userInfo || !spreadsheet.value) {
-    console.log(TAG, '未找到用户信息或表格未初始化:', {
-      userInfo,
-      userId,
-      activeUsers: activeUsers.value,
-      hasSpreadsheet: !!spreadsheet.value,
-      user
-    })
-    return
-  }
+  if (!userInfo || !spreadsheet.value) return
 
   // 获取表格容器
   const container = spreadsheetRef.value
   if (!container) return
+
+  // 获取 canvas 元素
+  const canvas = container.querySelector('.x-spreadsheet-table') as HTMLCanvasElement
+  if (!canvas) return
+
+  // 计算单元格位置
+  const rowHeight = 25 // 默认行高
+  const colWidth = 100 // 默认列宽
+  const headerHeight = 25 // 表头高度
+  const indexWidth = 60 // 索引列宽度
 
   // 创建或更新提示元素
   let indicator = document.getElementById(`editing-indicator-${userId}`)
@@ -197,33 +198,29 @@ const showEditingIndicator = (
     container.appendChild(indicator)
   }
 
-  // 计算单元格位置
-  const rowHeight = 25 // 行高
-  const colWidth = 100 // 列宽
-  const headerHeight = 25 // 表头高度
-  const indexWidth = 60 // 索引列宽度
-
-  // 计算单元格的位置
-  const top = headerHeight + row * rowHeight
-  const left = indexWidth + column * colWidth
+  // 计算相对于 canvas 的位置
+  const canvasRect = canvas.getBoundingClientRect()
+  const containerRect = container.getBoundingClientRect()
+  const left = indexWidth + (column * colWidth)
+  const top = headerHeight + (row * rowHeight) - 100 // 减去 100px 来调整纵向位置
 
   // 设置提示样式和内容
   Object.assign(indicator.style, {
     position: 'absolute',
-    left: `${left}px`,
-    top: `${top - 5}px`, // 调整位置，更靠近单元格
+    left: `${left + 5}px`, // 稍微偏右一点
+    top: `${top + 225}px`, // 调整纵向位置
     backgroundColor: `hsl(${userId * 137.508} 70% 45%)`,
     color: '#fff',
-    padding: '2px 6px', // 减小内边距
+    padding: '2px 6px',
     borderRadius: '3px',
     fontSize: '12px',
     zIndex: '1000',
     pointerEvents: 'none',
-    transform: 'translateY(-100%)',
+    transform: 'none',
     opacity: '0.9',
     whiteSpace: 'nowrap',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)', // 添加阴影
-    border: '1px solid rgba(255,255,255,0.2)' // 添加边框
+    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+    border: '1px solid rgba(255,255,255,0.2)'
   })
   indicator.textContent = `${userInfo.username} 正在编辑`
 
@@ -455,6 +452,26 @@ onUnmounted(() => {
   // 清空引用
   spreadsheet.value = null
 })
+
+// 替代方案：使用 API 获取单元格位置
+const getCellPosition = (row: number, column: number) => {
+  if (!spreadsheet.value) return null
+  
+  // 获取表格的偏移量
+  const table = spreadsheetRef.value?.querySelector('.x-spreadsheet-sheet')
+  if (!table) return null
+  
+  const rect = table.getBoundingClientRect()
+  const rowHeight = 25 // 默认行高
+  const colWidth = 100 // 默认列宽
+  const headerHeight = 25 // 表头高度
+  const indexWidth = 60 // 索引列宽度
+  
+  return {
+    left: rect.left + indexWidth + (column * colWidth),
+    top: rect.top + headerHeight + (row * rowHeight)
+  }
+}
 </script>
 
 <style scoped>
@@ -464,14 +481,14 @@ onUnmounted(() => {
   pointer-events: none;
   z-index: 1000;
   font-family: system-ui, -apple-system, sans-serif;
-  line-height: 1.2;
+  line-height: 1;
 }
 
 @keyframes fadeInOut {
-  0% { opacity: 0; transform: translateY(-100%) translateY(5px); }
-  10% { opacity: 0.9; transform: translateY(-100%) translateY(0); }
-  90% { opacity: 0.9; transform: translateY(-100%) translateY(0); }
-  100% { opacity: 0; transform: translateY(-100%) translateY(-5px); }
+  0% { opacity: 0; transform: translateY(2px); }
+  10% { opacity: 0.9; transform: translateY(0); }
+  90% { opacity: 0.9; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-2px); }
 }
 </style>
 

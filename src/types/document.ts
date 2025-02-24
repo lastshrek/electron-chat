@@ -45,11 +45,11 @@ export type OperationType =
 	| "deleteColumn";
 
 export interface CellOperation {
-	type: OperationType;
+	type: "updateCell";
 	row: number;
 	column: number;
-	content?: string;
-	style?: CellStyle;
+	content: string;
+	style: CellStyle | null | undefined;
 	userId: number;
 }
 
