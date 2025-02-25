@@ -1,6 +1,5 @@
 <template>
-  <MainLayout>
-    <div class="h-full flex flex-col">
+  <div class="h-full flex flex-col">
       <!-- 顶部工具栏 -->
       <div class="h-14 border-b flex items-center justify-between px-6 bg-white">
         <div class="flex items-center gap-4">
@@ -168,7 +167,6 @@
         </div>
       </div>
     </div>
-  </MainLayout>
 </template>
 
 <script setup lang="ts">

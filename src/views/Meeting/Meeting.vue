@@ -1,6 +1,5 @@
 <template>
-  <MainLayout>
-    <div class="h-full flex flex-col">
+  <div class="h-full flex flex-col">
       <!-- 头部 -->
       <div class="flex-shrink-0 p-4 border-b">
         <h1 class="text-xl font-semibold">在线会议</h1>
@@ -135,7 +134,6 @@
         </div>
       </div>
     </div>
-  </MainLayout>
 </template>
 
 <script setup lang="ts">

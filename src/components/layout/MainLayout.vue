@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
-import { MessageSquare, Users, Plus, Settings, LogOut, Video, FileText } from 'lucide-vue-next'
+import { MessageSquare, Users, Plus, Settings, LogOut, Video, FileText, LayoutDashboard } from 'lucide-vue-next'
 import { eventBus } from '@/utils/eventBus'
 import { authApi } from '@/api/auth'
 import { useChatStore } from '@/stores/chat'
@@ -99,7 +99,7 @@ const handleSettingsClick = () => {
 	})
 }
 
-// 导航配置
+// 修改导航配置，添加工作台选项
 const navigation = [
 	{
 		path: '/chat',
@@ -115,6 +115,11 @@ const navigation = [
 		path: '/meeting',
 		icon: Video,
 		title: '会议'
+	},
+	{
+		path: '/workspace', // 新增工作台路由
+		icon: LayoutDashboard, // 需要从 lucide-vue-next 导入这个图标
+		title: '工作台'
 	},
 	{
 		path: '/docs',
@@ -171,7 +176,7 @@ onUnmounted(() => {
 					v-for="item in navigation" 
 					:key="item.path"
 					:to="item.path"
-					class="block w-12 h-12 rounded-lg flex items-center justify-center text-[#8B9BB4] hover:bg-[#2A3441] hover:text-white transition-colors group relative"
+					class="w-12 h-12 rounded-lg flex items-center justify-center text-[#8B9BB4] hover:bg-[#2A3441] hover:text-white transition-colors group relative"
 					:class="{ 'bg-[#2A3441] !text-white': route.path === item.path }"
 					@click="item.path === '/settings' ? handleSettingsClick() : null"
 				>

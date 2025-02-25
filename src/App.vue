@@ -1,24 +1,33 @@
 <template>
-	<router-view v-slot="{ Component }">
-		<keep-alive :include="['home', 'contacts']">
-			<component :is="Component" />
-		</keep-alive>
-	</router-view>
+	<component :is="layout">
+		<router-view />
+	</component>
 	<Toaster />
 </template>
+
 <script setup lang="ts">
-import {onMounted, onUnmounted} from "vue";
+import {onMounted, onUnmounted, computed} from "vue";
 import {useUserStore} from "@/stores/user";
 import {useChatStore} from "./stores/chat";
 import Toaster from '@/components/ui/toast/Toaster.vue'
 import {wsService} from "@/services/ws";
 import {eventBus} from "@/utils/eventBus";
+import {useRoute} from 'vue-router'
+import MainLayout from '@/components/layout/MainLayout.vue'
+import EmptyLayout from '@/components/layout/EmptyLayout.vue'
 // import {electronAPI} from "@/electron";
 
 console.log("[App.vue]", `Hello world from Electron!`);
 
 const userStore = useUserStore();
 const chatStore = useChatStore();
+const route = useRoute()
+
+// 根据路由的 meta.layout 属性决定使用哪个布局
+const layout = computed(() => {
+	const layoutName = route.meta.layout || 'empty'
+	return layoutName === 'main' ? MainLayout : EmptyLayout
+})
 
 // 初始化用户认证状态
 onMounted(async () => {

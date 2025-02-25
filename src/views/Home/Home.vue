@@ -2,14 +2,14 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:28:39
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-24 15:59:41
+ * @LastEditTime : 2025-02-25 21:08:23
  * @FilePath     : /src/views/Home/Home.vue
  * @Description  : 
  * Copyright 2025 lastshrek, All Rights Reserved.
  * 2025-02-19 19:28:39
 -->
 <template>
-	<MainLayout>
+	<div class="flex h-full w-full">
 		<!-- 会话列表 - 固定宽度 -->
 		<div class="w-72 border-r bg-slate-50 flex flex-col min-w-0 shrink-0">
 			<div class="h-14 border-b flex items-center px-4 shrink-0">
@@ -251,7 +251,7 @@
 				</div>
 			</template>
 		</div>
-	</MainLayout>
+	</div>
 </template>
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, nextTick, onUnmounted } from 'vue'

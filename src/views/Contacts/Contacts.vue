@@ -2,15 +2,14 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:08:47
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-22 15:46:51
+ * @LastEditTime : 2025-02-25 21:08:04
  * @FilePath     : /src/views/Contacts/Contacts.vue
  * @Description  : Contacts page
  * Copyright 2025 lastshrek, All Rights Reserved.
  * 2025-02-19 19:08:47
 -->
 <template>
-	<MainLayout>
-		<div class="flex h-full w-full">
+	<div class="flex h-full w-full">
 			<!-- 左侧列表，固定宽度 -->
 			<div class="w-80 border-r bg-slate-50 flex-shrink-0 h-full overflow-y-auto">
 				<!-- 搜索框 -->
@@ -254,7 +253,6 @@
 				</div>
 			</div>
 		</div>
-	</MainLayout>
 </template>
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'

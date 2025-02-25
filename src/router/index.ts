@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:28:07
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-21 23:41:12
+ * @LastEditTime : 2025-02-25 21:10:31
  * @FilePath     : /src/router/index.ts
  * @Description  : router index
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -21,7 +21,7 @@ const routes: RouteRecordRaw[] = [
 		path: "/home",
 		name: "home",
 		component: () => import("@/views/Home/Home.vue"),
-		meta: {requiresAuth: true},
+		meta: {requiresAuth: true, layout: "main"},
 	},
 	{
 		path: "/login",
@@ -41,6 +41,7 @@ const routes: RouteRecordRaw[] = [
 		component: () => import("@/views/Contacts/Contacts.vue"),
 		meta: {
 			requiresAuth: true,
+			layout: "main",
 		},
 	},
 	{
@@ -49,6 +50,7 @@ const routes: RouteRecordRaw[] = [
 		component: () => import("@/views/Meeting/Meeting.vue"),
 		meta: {
 			requiresAuth: true,
+			layout: "main",
 		},
 	},
 	{
@@ -57,6 +59,7 @@ const routes: RouteRecordRaw[] = [
 		component: () => import("@/views/Meeting/MeetingRoom.vue"),
 		meta: {
 			requiresAuth: true,
+			layout: "main",
 		},
 	},
 	{
@@ -65,6 +68,7 @@ const routes: RouteRecordRaw[] = [
 		component: () => import("@/views/Docs/Docs.vue"),
 		meta: {
 			requiresAuth: true,
+			layout: "main",
 		},
 	},
 	{
@@ -73,6 +77,70 @@ const routes: RouteRecordRaw[] = [
 		component: () => import("@/views/Docs/DocumentEdit.vue"),
 		meta: {
 			requiresAuth: true,
+			layout: "main",
+		},
+	},
+	{
+		path: "/workspace",
+		name: "workspace",
+		component: () => import("@/views/WorkSpace/Workspace.vue"),
+		meta: {
+			requiresAuth: true,
+			layout: "main",
+		},
+	},
+	{
+		path: "/attendance",
+		name: "attendance",
+		component: () => import("@/views/Attendance/Attendance.vue"),
+		meta: {
+			requiresAuth: true,
+			layout: "main",
+		},
+	},
+	{
+		path: "/timesheet",
+		name: "timesheet",
+		component: () => import("@/views/Timesheet/Timesheet.vue"),
+		meta: {
+			requiresAuth: true,
+			layout: "main",
+		},
+	},
+	{
+		path: "/tempwork",
+		name: "tempwork",
+		component: () => import("@/views/TempWork/TempWork.vue"),
+		meta: {
+			requiresAuth: true,
+			layout: "main",
+		},
+	},
+	{
+		path: "/monthlyreport",
+		name: "monthlyreport",
+		component: () => import("@/views/MonthlyReport/MonthlyReport.vue"),
+		meta: {
+			requiresAuth: true,
+			layout: "main",
+		},
+	},
+	{
+		path: "/overtime",
+		name: "overtime",
+		component: () => import("@/views/Overtime/Overtime.vue"),
+		meta: {
+			requiresAuth: true,
+			layout: "main",
+		},
+	},
+	{
+		path: "/timesheet-review",
+		name: "timesheet-review",
+		component: () => import("@/views/TimesheetReview/TimesheetReview.vue"),
+		meta: {
+			requiresAuth: true,
+			layout: "main",
 		},
 	},
 	{
