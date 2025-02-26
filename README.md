@@ -1,9 +1,7 @@
 <div id="top" align="center" style="text-align:center;">
 <h1>
   <img src="./public/logo.png" alt="electron-vue" width="428" />
-  <br> Electron Quick Start - Vue+Vite+TypeScript+Sass
-
-  ![CodeQL](https://github.com/heliomarpm/electron-vuevite-quick-start/actions/workflows/codeql-analysis.yml/badge.svg) ![Publish](https://github.com/heliomarpm/electron-vuevite-quick-start/actions/workflows/publish.yml/badge.svg) <a href="https://navto.me/heliomarpm" target="_blank"><img src="https://navto.me/assets/navigatetome-brand.png" width="32"/></a>
+  <br> 即时通讯应用 - Electron+Vue+Vite+TypeScript
 
   ![electron version](https://img.shields.io/github/package-json/dependency-version/heliomarpm/electron-vuevite-quick-start/dev/electron)
   ![electron builder version](https://img.shields.io/github/package-json/dependency-version/heliomarpm/electron-vuevite-quick-start/dev/electron-builder)
@@ -41,160 +39,121 @@
 </p>
 </div>
 
-Clone and run for a quick way to see Electron in action.
+# 即时通讯应用
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+这是一个基于 Electron + Vue 3 + Vite + TypeScript 构建的现代化即时通讯应用程序。它提供了丰富的聊天功能、联系人管理和实时消息传递能力。
 
-This is a minimal Electron application based on the [Quick Start Guide](https://electronjs.org/docs/latest/tutorial/quick-start) within the Electron documentation.
+## 功能特点
 
-A basic Electron application needs just these files:
+- **用户认证**：登录、注册和用户信息管理
+- **联系人管理**：
+  - 好友列表展示
+  - 组织架构浏览
+  - 添加好友功能
+  - 好友请求处理
+- **即时通讯**：
+  - 实时消息发送和接收
+  - 消息状态跟踪（发送中、已发送、已送达、已读、发送失败）
+  - 消息重发功能
+  - 输入状态提示（"正在输入..."）
+- **UI 组件**：
+  - 自定义 Toast 通知系统
+  - 异步图片加载
+  - 响应式布局
 
-package.json - Points to the app's main file and lists its details and dependencies.
-src/index.html - A web page to render. This is the app's renderer process.
-electron/main.ts - Starts the app and creates a browser window to render HTML. This is the app's main process.
-electron/preload.ts - A content script that runs before the renderer process loads.
-You can learn more about each of these components in depth within the [Tutorial](https://electronjs.org/docs/latest/tutorial/tutorial-prerequisites).
+## 技术栈
 
+- **前端框架**：Vue 3 + TypeScript
+- **构建工具**：Vite
+- **桌面应用框架**：Electron
+- **样式**：Tailwind CSS
+- **状态管理**：Pinia
+- **实时通信**：Socket.IO
+- **UI 组件**：自定义组件 + shadcn-vue
 
-## Recommended IDE Setup
+## 项目结构
 
-- [VS Code](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur) + [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=Vue.vscode-typescript-vue-plugin).
+```
+src/
+├── api/                 # API 请求模块
+├── assets/              # 静态资源
+├── components/          # 通用组件
+│   └── ui/              # UI 组件库
+│       └── toast/       # Toast 通知组件
+├── router/              # 路由配置
+├── services/            # 服务层
+│   ├── message.ts       # 消息服务
+│   ├── toast.ts         # Toast 服务
+│   └── ws.ts            # WebSocket 服务
+├── stores/              # Pinia 状态管理
+│   ├── chat.ts          # 聊天状态
+│   ├── message.ts       # 消息状态
+│   └── user.ts          # 用户状态
+├── types/               # TypeScript 类型定义
+├── utils/               # 工具函数
+└── views/               # 页面组件
+    ├── Contacts/        # 联系人页面
+    └── Home/            # 主页/聊天页面
+```
 
-## Type Support For `.vue` Imports in TS
+## 核心功能实现
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=Vue.vscode-typescript-vue-plugin) to make the TypeScript language service aware of `.vue` types.
+### WebSocket 通信
 
-If the standalone TypeScript plugin doesn't feel fast enough to you, Volar has also implemented a [Take Over Mode](https://github.com/johnsoncodehk/volar/discussions/471#discussioncomment-1361669) that is more performant. You can enable it by the following steps:
+应用使用 Socket.IO 实现实时通信，主要功能包括：
 
-1. Disable the built-in TypeScript Extension
-   1. Run `Extensions: Show Built-in Extensions` from VSCode's command palette
-   2. Find `TypeScript and JavaScript Language Features`, right click and select `Disable (Workspace)`
-2. Reload the VSCode window by running `Developer: Reload Window` from the command palette.
-   
+- 消息发送和接收
+- 好友请求通知
+- 输入状态同步
+- 消息状态更新
 
+### 状态管理
 
-<p align="center">
-  <a href="#electron-app">
-    <img alt="preview" src="https://raw.githubusercontent.com/heliomarpm/screenshots/main/electron-vuevite-quick-start.png" >
-  </a>
-</p>
+使用 Pinia 进行状态管理，主要包括：
 
-# Features
-- **Stands out**
-  - 🔥 Fast and Ready-to-go with a well-thought-out structure
-  - 🚀 Auto reload for main and **Fast Refresh** for renderer process
-  - 🎉 Window and Screen routing included
-  - 😎 Preload (context bridge) already configured
-  - 🙀 IPC communication example included
-  - 🔮 GitHub Action releases with `Windows`, `Mac` and `Linux` binaries
-  - 🔒 Source Code Protection support
-  - 🍪 Absolute paths support
-- **Technologies**:
-  - 🔋 Electron
-  - 🔥 VueJS 3
-  - 🧐 Vue Developer Tools
-  - 💙 TypeScript
-  - 📦 Electron Vite
-  - ✨ SASS modules
-  - 💫 Eslint / Prettier / EditorConfig 
-  - 📦 Electron Builder
-  - 🔮 action-electron-builder
+- `chatStore`：管理聊天会话列表和未读消息计数
+- `messageStore`：管理消息存储、状态更新和重发功能
+- `userStore`：管理用户信息和认证状态
 
-<br/>
+### UI 组件
 
-> :warning: If **Windows 7** and **8** support is important for your project, you should know that Electron in a version greater than 22x no longer supports it. You can read more about it [here](https://www.electronjs.org/docs/latest/breaking-changes#removed-windows-7--8--81-support). Therefore, you must downgrade Electron to the version cited in this context!
+自定义了一套 UI 组件，包括：
 
-## To Use
+- Toast 通知系统：支持成功、错误、警告和信息提示
+- 异步图片加载组件
+- 消息气泡组件
+- 组织架构树形组件
 
-To clone and run this repository you'll need [Git](https://git-scm.com) and [Node.js](https://nodejs.org/en/download/) (which comes with [npm](http://npmjs.com)) installed on your computer. From your command line:
+## 开发指南
+
+### 安装依赖
 
 ```bash
-# Clone this repository
-git clone https://github.com/heliomarpm/electron-vuevite-quick-start
-# Go into the repository
-cd electron-vuevite-quick-start
-# Install dependencies
 npm install
-# Run the app mode develop
+```
+
+### 开发模式运行
+
+```bash
 npm start
 ```
 
-> **Note**: If you're using Linux Bash for Windows, [see this guide](https://www.howtogeek.com/261575/how-to-run-graphical-linux-desktop-applications-from-windows-10s-bash-shell/) or use `node` from the command prompt.
-
-
-# Releasing
-> **Note**: to be able to perform `auto-updates` you will need a `code signed app`, for this purpose you will need to configure it by yourself, so check the [electron-builder](https://www.electron.build/code-signing) and [action-electron-builder](https://github.com/samuelmeuli/action-electron-builder#code-signing) docs please to get know how to do this.
-
-To release your app on a GitHub release with `Windows`, `Mac` and `Linux` binaries, you can perform the following commands:
+### 构建应用
 
 ```bash
-git pull
+npm run build
+```
+
+### 发布应用
+
+```bash
 npm run deploy
 ```
 
-> **Note**: Script for make release is contribution by @daltonmenezes
+## 贡献指南
 
+请阅读 [贡献指南](https://github.com/heliomarpm/electron-vuevite-quick-start/blob/master/docs/CONTRIBUTING.md) 了解如何为项目做出贡献。
 
-## Dev Dependencies
-
-- [electron](https://ghub.io/electron): Build cross platform desktop apps with JavaScript, HTML, and CSS
-- [electron-builder](https://ghub.io/electron-builder): A complete solution to package and build a ready for distribution Electron app for MacOS, Windows and Linux with “auto update” support out of the box
-- [open](https://ghub.io/open): Open stuff like URLs, files, executables. Cross-platform.
-- [semver](https://ghub.io/semver): The semantic version parser used by npm.
-
-## Resources for Learning Electron
-
-- [electronjs.org/docs](https://electronjs.org/docs) - all of Electron's documentation
-
-# Contributing
-
-Please make sure to read the [Contributing Guide](https://github.com/heliomarpm/electron-vuevite-quick-start/blob/master/docs/CONTRIBUTING.md) before making a pull request.
-
-
-Thank you to all the people who already contributed to project!
-
-<a href="https://github.com/heliomarpm/electron-vuevite-quick-start/graphs/contributors" target="_blank">
-  <img src="https://contrib.rocks/image?repo=heliomarpm/electron-vuevite-quick-start" />
-</a>
-
-###### Made with [contrib.rocks](https://contrib.rocks).
-
-That said, there's a bunch of ways you can contribute to this project, like by:
-
-- :beetle: Reporting a bug
-- :page_facing_up: Improving this documentation
-- :rotating_light: Sharing this project and recommending it to your friends
-- :dollar: Supporting this project on GitHub Sponsors or Ko-fi
-- :star2: Giving a star on this repository
-
-
-## Donate
-
-If you appreciate that, please consider donating to the Developer.
-
-<p align="center">
-  <!-- PixMe -->
-  <a href="https://www.pixme.bio/heliomarpm" target="_blank" rel="noopener noreferrer">
-    <img alt="pixme url" src="https://img.shields.io/badge/donate%20on-pixme-1C1E26?style=for-the-badge&labelColor=1C1E26&color=28f4f4"/>
-  </a>
-  <!-- PayPal -->
-  <a href="https://bit.ly/paypal-sponsor-heliomarpm" target="_blank" rel="noopener noreferrer">
-    <img alt="paypal url" src="https://img.shields.io/badge/paypal-1C1E26?style=for-the-badge&labelColor=1C1E26&color=0475fe"/>
-  </a>
-  <!-- Ko-fi -->
-  <a href="https://ko-fi.com/heliomarpm" target="_blank" rel="noopener noreferrer">
-    <img alt="kofi url" src="https://img.shields.io/badge/kofi-1C1E26?style=for-the-badge&labelColor=1C1E26&color=ff5f5f"/>
-  </a>
-  <!-- LiberaPay -->  
-  <a href="https://liberapay.com/heliomarpm" target="_blank" rel="noopener noreferrer">
-     <img alt="liberapay url" src="https://img.shields.io/badge/liberapay-1C1E26?style=for-the-badge&labelColor=1C1E26&color=f6c915"/>
-  </a>  
-  <!-- GitHub Sponsors -->
-  <a href="https://github.com/sponsors/heliomarpm" target="_blank" rel="noopener noreferrer">
-    <img alt="github sponsors url" src="https://img.shields.io/badge/GitHub%20-Sponsor-1C1E26?style=for-the-badge&labelColor=1C1E26&color=db61a2"/>
-  </a>
-</p>
-
-## License
+## 许可证
 
 [MIT © Heliomar P. Marques](https://github.com/heliomarpm/electron-vuevite-quick-start/blob/main/LICENSE) <a href="#top">🔝</a>
