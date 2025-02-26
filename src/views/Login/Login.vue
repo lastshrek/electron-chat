@@ -9,98 +9,79 @@
  * 2025-02-19 19:09:17
 -->
 <script setup lang="ts">
-	import {ref} from "vue";
-	import {useRouter} from "vue-router";
-	import {useUserStore} from "@/stores/user";
-	import {encrypt} from "@/utils/crypto";
-	import {Eye, EyeOff} from "lucide-vue-next";
-	import {toast} from "@/components/ui/toast/use-toast";
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
+import { encrypt } from '@/utils/crypto'
+import { Eye, EyeOff } from 'lucide-vue-next'
+import { toastService } from '@/services/toast'
 
-	const router = useRouter();
-	const userStore = useUserStore();
+const router = useRouter()
+const userStore = useUserStore()
 
-	const username = ref("");
-	const password = ref("");
-	const remember = ref(false);
-	const showPassword = ref(false);
-	const loading = ref(false);
+const username = ref('')
+const password = ref('')
+const remember = ref(false)
+const showPassword = ref(false)
+const loading = ref(false)
 
-	console.log("Login component mounted");
+console.log('Login component mounted')
 
-	const handleSubmit = async (e: Event) => {
-		console.log("Form submit event:", e);
-		e.preventDefault();
+const handleSubmit = async (e: Event) => {
+	console.log('Form submit event:', e)
+	e.preventDefault()
 
-		try {
-			if (!username.value || !password.value) {
-				console.log("Validation failed:", {username: username.value});
-				toast({
-					title: "错误",
-					description: "请输入用户名和密码",
-					variant: "destructive",
-				});
-				return;
-			}
-
-			await handleLogin();
-		} catch (error) {
-			console.error("Submit error:", error);
-		}
-	};
-
-	const handleLogin = async () => {
+	try {
 		if (!username.value || !password.value) {
-			toast({
-				title: "错误",
-				description: "用户名和密码不能为空",
-				variant: "destructive",
-			});
-			return;
+			console.log('Validation failed:', { username: username.value })
+			toastService.error('错误', '请输入用户名和密码')
+			return
 		}
 
-		loading.value = true;
-		console.log("正在尝试登录...", {username: username.value});
+		await handleLogin()
+	} catch (error) {
+		console.error('Submit error:', error)
+	}
+}
 
-		try {
-			// 加密密码
-			const encryptedPassword = encrypt(password.value);
-			console.log("密码已加密");
+const handleLogin = async () => {
+	if (!username.value || !password.value) {
+		toastService.error('错误', '用户名和密码不能为空')
+		return
+	}
 
-			const success = await userStore.login({
-				username: username.value,
-				password: encryptedPassword,
-			});
+	loading.value = true
+	console.log('正在尝试登录...', { username: username.value })
 
-			if (success) {
-				console.log("登录成功，准备跳转");
-				toast({
-					title: "登录成功",
-					description: "欢迎回来！",
-				});
-				router.push("/");
-			} else {
-				console.error("登录失败");
-				toast({
-					title: "登录失败",
-					description: "用户名或密码错误",
-					variant: "destructive",
-				});
-			}
-		} catch (error) {
-			console.error("登录出错:", error);
-			toast({
-				title: "登录失败",
-				description: "发生未知错误",
-				variant: "destructive",
-			});
-		} finally {
-			loading.value = false;
+	try {
+		// 加密密码
+		const encryptedPassword = encrypt(password.value)
+		console.log('密码已加密')
+
+		const success = await userStore.login({
+			username: username.value,
+			password: encryptedPassword,
+		})
+
+		if (success) {
+			console.log('登录成功，准备跳转')
+			toastService.success('登录成功', '欢迎回来！')
+			router.push('/')
+		} else {
+			console.error('登录失败')
+			toastService.error('登录失败', '用户名或密码错误')
 		}
-	};
+	} catch (error) {
+		console.error('登录出错:', error)
+		toastService.error('登录失败', '发生未知错误')
+	} finally {
+		loading.value = false
+	}
+}
 
-	const togglePasswordVisibility = () => {
-		showPassword.value = !showPassword.value;
-	};
+const togglePasswordVisibility = () => {
+	showPassword.value = !showPassword.value
+}
 </script>
 
 <template>
@@ -108,9 +89,7 @@
 		<!-- 背景装饰 -->
 		<div class="fixed inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
 			<!-- 网格纹理 -->
-			<div
-				class="absolute inset-0 bg-grid-slate-200/20 [mask-image:linear-gradient(0deg,transparent,black)]"
-			/>
+			<div class="absolute inset-0 bg-grid-slate-200/20 [mask-image:linear-gradient(0deg,transparent,black)]" />
 
 			<!-- 动态渐变球 -->
 			<div
@@ -124,9 +103,7 @@
 			/>
 
 			<!-- 装饰线条 -->
-			<div
-				class="absolute inset-0 bg-center [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]"
-			>
+			<div class="absolute inset-0 bg-center [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]">
 				<div class="absolute inset-0 bg-repeat bg-decorative-lines opacity-[0.015]" />
 			</div>
 		</div>
@@ -202,9 +179,7 @@
 								name="remember"
 								type="checkbox"
 							/>
-							<label class="text-sm text-muted-foreground" for="remember"
-								>记住我</label
-							>
+							<label class="text-sm text-muted-foreground" for="remember">记住我</label>
 						</div>
 						<a class="text-sm text-primary hover:underline" href="#">忘记密码？</a>
 					</div>
@@ -215,18 +190,13 @@
 						:disabled="loading"
 						class="w-full h-10 px-4 py-2 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 shadow"
 					>
-						{{ loading ? "登录中..." : "登录" }}
+						{{ loading ? '登录中...' : '登录' }}
 					</button>
 
 					<!-- 注册链接 -->
 					<div class="text-center text-sm">
 						<span class="text-muted-foreground">还没有账号？</span>
-						<a
-							class="text-primary hover:underline ml-1"
-							href="#"
-							@click.prevent="router.push('/register')"
-							>立即注册</a
-						>
+						<a class="text-primary hover:underline ml-1" href="#" @click.prevent="router.push('/register')">立即注册</a>
 					</div>
 				</form>
 			</div>
@@ -235,46 +205,40 @@
 </template>
 
 <style scoped>
-	.bg-grid-slate-200\/20 {
-		background-image: linear-gradient(to right, rgb(226 232 240 / 0.1) 1px, transparent 1px),
-			linear-gradient(to bottom, rgb(226 232 240 / 0.1) 1px, transparent 1px);
-		background-size: 4rem 4rem;
-	}
+.bg-grid-slate-200\/20 {
+	background-image: linear-gradient(to right, rgb(226 232 240 / 0.1) 1px, transparent 1px),
+		linear-gradient(to bottom, rgb(226 232 240 / 0.1) 1px, transparent 1px);
+	background-size: 4rem 4rem;
+}
 
-	.bg-decorative-lines {
-		background-image: repeating-linear-gradient(
-			45deg,
-			#6366f1 0px,
-			#6366f1 1px,
-			transparent 1px,
-			transparent 10px
-		);
-	}
+.bg-decorative-lines {
+	background-image: repeating-linear-gradient(45deg, #6366f1 0px, #6366f1 1px, transparent 1px, transparent 10px);
+}
 
-	@keyframes blob {
-		0% {
-			transform: translate(0px, 0px) scale(1);
-		}
-		33% {
-			transform: translate(30px, -50px) scale(1.1);
-		}
-		66% {
-			transform: translate(-20px, 20px) scale(0.9);
-		}
-		100% {
-			transform: translate(0px, 0px) scale(1);
-		}
+@keyframes blob {
+	0% {
+		transform: translate(0px, 0px) scale(1);
 	}
+	33% {
+		transform: translate(30px, -50px) scale(1.1);
+	}
+	66% {
+		transform: translate(-20px, 20px) scale(0.9);
+	}
+	100% {
+		transform: translate(0px, 0px) scale(1);
+	}
+}
 
-	.animate-blob {
-		animation: blob 7s infinite;
-	}
+.animate-blob {
+	animation: blob 7s infinite;
+}
 
-	.animation-delay-2000 {
-		animation-delay: 2s;
-	}
+.animation-delay-2000 {
+	animation-delay: 2s;
+}
 
-	.animation-delay-4000 {
-		animation-delay: 4s;
-	}
+.animation-delay-4000 {
+	animation-delay: 4s;
+}
 </style>
