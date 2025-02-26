@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:12:22
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-22 21:51:44
+ * @LastEditTime : 2025-02-26 12:57:51
  * @FilePath     : /src/stores/user.ts
  * @Description  : user store
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -11,9 +11,8 @@
 import {defineStore} from "pinia";
 import {ref, computed} from "vue";
 import {authApi} from "@/api/auth";
-import type {UserInfo, LoginParams, LoginResponse} from "@/types/api";
+import type {UserInfo, LoginParams} from "@/types/api";
 import {useChatStore} from "./chat";
-import {useMessageStore} from "./message";
 import {wsService} from "@/services/ws";
 import {useRouter} from "vue-router";
 
@@ -105,7 +104,10 @@ export const useUserStore = defineStore("user", () => {
 			const response = await authApi.login(params);
 			console.log("登录成功，响应数据:", response);
 
-			const {token, user} = response;
+			const {token, user} = response as unknown as {
+				token: string;
+				user: UserInfo;
+			};
 
 			setToken(token);
 			setUserInfo(user);

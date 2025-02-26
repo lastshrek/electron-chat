@@ -1,16 +1,15 @@
 {
   "compilerOptions": {
     "composite": true,
-    "skipLibCheck": true,
     "module": "ESNext",
-    "moduleResolution": "bundler",
-    "allowSyntheticDefaultImports": true
+    "moduleResolution": "Node",
+    "allowSyntheticDefaultImports": true,
+    "types": [
+      "node"
+    ]
   },
   "include": [
     "vite.config.ts",
-    "electron",
-    "src/types/**/*",
-    "src/db/**/*",
-    "src/utils/**/*"
+    "electron"
   ]
 }

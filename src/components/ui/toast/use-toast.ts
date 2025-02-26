@@ -1,165 +1,123 @@
+import { ref, readonly, watch } from 'vue'
 import type { Component, VNode } from 'vue'
-import type { ToastProps } from '.'
-import { computed, ref } from 'vue'
 
-const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000000
+export const TOAST_LIMIT = 5
+export const TOAST_REMOVE_DELAY = 1000 // 减少延迟时间
 
-export type StringOrVNode =
-  | string
-  | VNode
-  | (() => VNode)
-
-type ToasterToast = ToastProps & {
-  id: string
-  title?: string
-  description?: StringOrVNode
-  action?: Component
+export type ToastActionElement = VNode
+export type ToastProps = {
+	id?: string
+	class?: string
+	variant?: 'default' | 'destructive' | 'success' | 'warning' | 'info'
+	title?: string
+	description?: string | VNode
+	action?: Component
+	duration?: number
+	open?: boolean
+	onOpenChange?: (open: boolean) => void
 }
 
-const actionTypes = {
-  ADD_TOAST: 'ADD_TOAST',
-  UPDATE_TOAST: 'UPDATE_TOAST',
-  DISMISS_TOAST: 'DISMISS_TOAST',
-  REMOVE_TOAST: 'REMOVE_TOAST',
-} as const
+const toasts = ref<ToastProps[]>([])
 
-let count = 0
+export function useToast() {
+	// 监听 toasts 变化，处理自动关闭
+	watch(
+		toasts,
+		newToasts => {
+			newToasts.forEach(toast => {
+				if (toast.open && toast.duration && toast.duration > 0) {
+					setTimeout(() => {
+						dismissToast(toast.id as string)
+					}, toast.duration)
+				}
+			})
+		},
+		{ deep: true }
+	)
 
-function genId() {
-  count = (count + 1) % Number.MAX_VALUE
-  return count.toString()
+	const toast = (props: ToastProps) => {
+		const id = crypto.randomUUID()
+		const newToast = {
+			id,
+			open: true,
+			duration: 5000, // 默认 5 秒后自动关闭
+			...props,
+		}
+
+		toasts.value = [newToast, ...toasts.value].slice(0, TOAST_LIMIT)
+
+		return id
+	}
+
+	const dismissToast = (toastId: string) => {
+		toasts.value = toasts.value.map(toast => {
+			if (toast.id === toastId) {
+				return {
+					...toast,
+					open: false,
+				}
+			}
+			return toast
+		})
+
+		// 延迟后移除 toast
+		setTimeout(() => {
+			toasts.value = toasts.value.filter(t => t.id !== toastId)
+		}, TOAST_REMOVE_DELAY)
+	}
+
+	const dismiss = (toastId?: string) => {
+		if (toastId) {
+			dismissToast(toastId)
+		} else {
+			// 关闭所有 toast
+			toasts.value.forEach(toast => {
+				dismissToast(toast.id as string)
+			})
+		}
+	}
+
+	const success = (
+		title: string,
+		description?: string,
+		props?: Omit<ToastProps, 'title' | 'description' | 'variant'>
+	) => {
+		const safeDescription = typeof description === 'string' ? description : undefined
+		return toast({ title, description: safeDescription, variant: 'success', ...props })
+	}
+
+	const error = (
+		title: string,
+		description?: string,
+		props?: Omit<ToastProps, 'title' | 'description' | 'variant'>
+	) => {
+		const safeDescription = typeof description === 'string' ? description : undefined
+		return toast({ title, description: safeDescription, variant: 'destructive', ...props })
+	}
+
+	const warning = (
+		title: string,
+		description?: string,
+		props?: Omit<ToastProps, 'title' | 'description' | 'variant'>
+	) => {
+		const safeDescription = typeof description === 'string' ? description : undefined
+		return toast({ title, description: safeDescription, variant: 'warning', ...props })
+	}
+
+	const info = (title: string, description?: string, props?: Omit<ToastProps, 'title' | 'description' | 'variant'>) => {
+		const safeDescription = typeof description === 'string' ? description : undefined
+		return toast({ title, description: safeDescription, variant: 'info', ...props })
+	}
+
+	return {
+		toasts: readonly(toasts),
+		toast,
+		dismiss,
+		success,
+		error,
+		warning,
+		info,
+	}
 }
 
-type ActionType = typeof actionTypes
-
-type Action =
-  | {
-    type: ActionType['ADD_TOAST']
-    toast: ToasterToast
-  }
-  | {
-    type: ActionType['UPDATE_TOAST']
-    toast: Partial<ToasterToast>
-  }
-  | {
-    type: ActionType['DISMISS_TOAST']
-    toastId?: ToasterToast['id']
-  }
-  | {
-    type: ActionType['REMOVE_TOAST']
-    toastId?: ToasterToast['id']
-  }
-
-interface State {
-  toasts: ToasterToast[]
-}
-
-const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
-
-function addToRemoveQueue(toastId: string) {
-  if (toastTimeouts.has(toastId))
-    return
-
-  const timeout = setTimeout(() => {
-    toastTimeouts.delete(toastId)
-    dispatch({
-      type: actionTypes.REMOVE_TOAST,
-      toastId,
-    })
-  }, TOAST_REMOVE_DELAY)
-
-  toastTimeouts.set(toastId, timeout)
-}
-
-const state = ref<State>({
-  toasts: [],
-})
-
-function dispatch(action: Action) {
-  switch (action.type) {
-    case actionTypes.ADD_TOAST:
-      state.value.toasts = [action.toast, ...state.value.toasts].slice(0, TOAST_LIMIT)
-      break
-
-    case actionTypes.UPDATE_TOAST:
-      state.value.toasts = state.value.toasts.map(t =>
-        t.id === action.toast.id ? { ...t, ...action.toast } : t,
-      )
-      break
-
-    case actionTypes.DISMISS_TOAST: {
-      const { toastId } = action
-
-      if (toastId) {
-        addToRemoveQueue(toastId)
-      }
-      else {
-        state.value.toasts.forEach((toast) => {
-          addToRemoveQueue(toast.id)
-        })
-      }
-
-      state.value.toasts = state.value.toasts.map(t =>
-        t.id === toastId || toastId === undefined
-          ? {
-              ...t,
-              open: false,
-            }
-          : t,
-      )
-      break
-    }
-
-    case actionTypes.REMOVE_TOAST:
-      if (action.toastId === undefined)
-        state.value.toasts = []
-      else
-        state.value.toasts = state.value.toasts.filter(t => t.id !== action.toastId)
-
-      break
-  }
-}
-
-function useToast() {
-  return {
-    toasts: computed(() => state.value.toasts),
-    toast,
-    dismiss: (toastId?: string) => dispatch({ type: actionTypes.DISMISS_TOAST, toastId }),
-  }
-}
-
-type Toast = Omit<ToasterToast, 'id'>
-
-function toast(props: Toast) {
-  const id = genId()
-
-  const update = (props: ToasterToast) =>
-    dispatch({
-      type: actionTypes.UPDATE_TOAST,
-      toast: { ...props, id },
-    })
-
-  const dismiss = () => dispatch({ type: actionTypes.DISMISS_TOAST, toastId: id })
-
-  dispatch({
-    type: actionTypes.ADD_TOAST,
-    toast: {
-      ...props,
-      id,
-      open: true,
-      onOpenChange: (open: boolean) => {
-        if (!open)
-          dismiss()
-      },
-    },
-  })
-
-  return {
-    id,
-    dismiss,
-    update,
-  }
-}
-
-export { toast, useToast }
+export const toast = useToast()

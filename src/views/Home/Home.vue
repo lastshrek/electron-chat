@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:28:39
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-25 21:08:23
+ * @LastEditTime : 2025-02-26 14:30:04
  * @FilePath     : /src/views/Home/Home.vue
  * @Description  : 
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -20,8 +20,8 @@
 			<div class="flex-1 overflow-y-auto min-h-0">
 				<div class="p-2 space-y-1">
 					<!-- 无会话时显示提示 -->
-					<div 
-						v-if="chats.size === 0" 
+					<div
+						v-if="chats.size === 0"
 						class="flex flex-col items-center justify-center h-[calc(100vh-3.5rem)] text-gray-400"
 					>
 						<MessageSquare class="w-12 h-12 mb-4" />
@@ -88,13 +88,9 @@
 				<div class="flex-1 overflow-y-auto p-4 space-y-4" ref="messageList">
 					<template v-for="message in messageGroups" :key="message.id">
 						<!-- 消息容器 -->
-						<div 
-							class="flex items-start gap-2" 
-							:class="[
-								message.sender?.id === userStore.userInfo?.user_id 
-									? 'flex-row-reverse' 
-									: 'flex-row'
-							]"
+						<div
+							class="flex items-start gap-2"
+							:class="[message.sender?.id === userStore.userInfo?.id ? 'flex-row-reverse' : 'flex-row']"
 						>
 							<!-- 头像 -->
 							<div class="flex-shrink-0">
@@ -112,13 +108,9 @@
 							</div>
 
 							<!-- 消息内容 -->
-							<div 
-								class="flex flex-col max-w-[70%]" 
-								:class="[
-									message.sender?.id === userStore.userInfo?.user_id 
-										? 'items-end' 
-										: 'items-start'
-								]"
+							<div
+								class="flex flex-col max-w-[70%]"
+								:class="[message.sender?.id === userStore.userInfo?.id ? 'items-end' : 'items-start']"
 							>
 								<!-- 发送者名称 -->
 								<div class="text-xs text-slate-400 mb-1">
@@ -126,28 +118,24 @@
 								</div>
 
 								<!-- 消息气泡 -->
-								<div 
+								<div
 									class="flex items-end gap-2"
-									:class="[
-										message.sender?.id === userStore.userInfo?.user_id 
-											? 'flex-row-reverse' 
-											: 'flex-row'
-									]"
+									:class="[message.sender?.id === userStore.userInfo?.id ? 'flex-row-reverse' : 'flex-row']"
 								>
-									<div 
+									<div
 										class="rounded-lg px-3 py-2 break-words"
 										:class="[
-											message.sender?.id === userStore.userInfo?.user_id 
-												? 'bg-blue-500 text-white' 
-												: 'bg-slate-100 text-slate-700'
+											message.sender?.id === userStore.userInfo?.id
+												? 'bg-blue-500 text-white'
+												: 'bg-slate-100 text-slate-700',
 										]"
 									>
 										{{ message.content }}
 									</div>
 
 									<!-- 消息状态（只在自己发送的消息上显示） -->
-									<div 
-										v-if="message.sender?.id === userStore.userInfo?.user_id"
+									<div
+										v-if="message.sender?.id === userStore.userInfo?.id"
 										class="text-xs text-slate-400 flex items-center"
 									>
 										<span v-if="message.status === 'SENDING'" class="animate-spin">
@@ -161,10 +149,7 @@
 										</span>
 										<span v-else-if="message.status === 'FAILED'" class="text-red-500">
 											<XIcon class="w-3 h-3" />
-											<button 
-												class="ml-1 hover:text-red-600" 
-												@click="handleResend(message.id)"
-											>
+											<button class="ml-1 hover:text-red-600" @click="handleResend(message.id)">
 												<RefreshCwIcon class="w-3 h-3" />
 											</button>
 										</span>
@@ -176,10 +161,7 @@
 				</div>
 
 				<!-- 在消息列表和输入框之间显示正在输入的用户 -->
-				<div 
-					v-if="typingUsers.length > 0" 
-					class="px-4 py-2 flex items-center bg-transparent"					
-				>
+				<div v-if="typingUsers.length > 0" class="px-4 py-2 flex items-center bg-transparent">
 					<div class="inline-flex items-center space-x-2 rounded-full px-3 py-1.5">
 						<!-- 用户头像 -->
 						<div class="flex -space-x-2">
@@ -218,12 +200,7 @@
 						<!-- 按钮组 - 使用绝对定位 -->
 						<div class="absolute right-2 bottom-2 flex items-center space-x-2">
 							<!-- 文件上传按钮 -->
-							<input
-								type="file"
-								class="hidden"
-								id="file-upload"
-								@change="handleFileUpload"
-							/>
+							<input type="file" class="hidden" id="file-upload" @change="handleFileUpload" />
 							<label
 								for="file-upload"
 								class="h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
@@ -257,195 +234,172 @@
 import { ref, onMounted, computed, watch, nextTick, onUnmounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { wsService } from '@/services/ws'
-import MainLayout from '@/components/layout/MainLayout.vue'
 import { useChatStore } from '@/stores/chat'
 import { storeToRefs } from 'pinia'
 import type { ChatInfo } from '@/stores/chat'
-import { useMessageStore } from "@/stores/message"
-import {messageService} from "@/services/message";
-import {toast} from "@/components/ui/toast";
-import {
-	Paperclip,
-	Loader2Icon,
-	CheckIcon,
-	CheckCheckIcon,
-	XIcon,
-	RefreshCwIcon,
-	MessageSquare,
-} from "lucide-vue-next";
-import {useRoute, useRouter} from 'vue-router';
-import { ChatTypingManager } from '@/utils/chat-typing';
-import TypingIndicator from '@/components/ui/typing-indicator.vue';
-import AsyncImage from '@/components/ui/async-image.vue';
-const TAG = '🏠️Home:';
+import { useMessageStore } from '@/stores/message'
+import { messageService } from '@/services/message'
+import { toastService } from '@/services/toast'
+import { Paperclip, Loader2Icon, CheckIcon, CheckCheckIcon, XIcon, RefreshCwIcon, MessageSquare } from 'lucide-vue-next'
+import { useRoute, useRouter } from 'vue-router'
+import { ChatTypingManager } from '@/utils/chat-typing'
+import TypingIndicator from '@/components/ui/typing-indicator.vue'
+import AsyncImage from '@/components/ui/async-image.vue'
+const TAG = '🏠️ Home:'
 const userStore = useUserStore()
 const message = ref('')
 const selectedChat = ref<ChatInfo | null>(null)
 const chatStore = useChatStore()
 const { chats } = storeToRefs(chatStore)
 const messageStore = useMessageStore()
-const route = useRoute();
-const router = useRouter();
+const route = useRoute()
+const router = useRouter()
 
 const messageGroups = computed(() => {
-	if (!selectedChat.value) return [];
-	const messages = messageStore.getMessagesByChat(selectedChat.value.id);
-	console.log('Current messages:', messages);
-	return messages;
-});
+	if (!selectedChat.value) return []
+	const messages = messageStore.getMessagesByChat(selectedChat.value.id)
+	console.log('Current messages:', messages)
+	return messages
+})
 
-const messageList = ref<HTMLElement | null>(null);
+const messageList = ref<HTMLElement | null>(null)
 
-const typingUsers = ref<number[]>([]);
-const typingManager = ref<ChatTypingManager>();
+const typingUsers = ref<number[]>([])
+const typingManager = ref<ChatTypingManager>()
 
 // 修改类型定义
 interface ChatParticipant {
-	chat_id: number;
-	user_id: number;
-	role: string;
-	username: string;
-	avatar: string;
-	id: number; // 添加 id 字段
+	chat_id: number
+	user_id: number
+	role: string
+	username: string
+	avatar: string
+	id: number // 添加 id 字段
 }
 
 interface OtherParticipant {
-	username: string;
-	avatar: string;
-	user_id: number;
-	chat_id: number;
-	friendship_id?: number;
-	friend_since?: string;
-	id: number; // 添加 id 字段
+	username: string
+	avatar: string
+	user_id: number
+	chat_id: number
+	friendship_id?: number
+	friend_since?: string
+	id: number // 添加 id 字段
 }
 
 // 修改参与者缓存的类型
-const participantsCache = ref(new Map<number, Array<ChatParticipant>>());
+const participantsCache = ref(new Map<number, Array<ChatParticipant>>())
 
 // 修改其他参与者信息的类型
-const otherParticipants = ref(new Map<number, OtherParticipant>());
+const otherParticipants = ref(new Map<number, OtherParticipant>())
 
 // 修改获取其他参与者的方法
 const getOtherParticipant = async (chat: ChatInfo) => {
-	if (!userStore.userInfo) return null;
-	
-	const otherParticipant = chat.participants.find(
-		p => p.id !== userStore.userInfo?.user_id
-	);
-	
-	return otherParticipant || null;
-};
+	if (!userStore.userInfo) return null
+
+	const otherParticipant = chat.participants.find(p => p.id !== userStore.userInfo?.id)
+
+	return otherParticipant || null
+}
 
 // 加载所有聊天的参与者信息
 const loadAllParticipants = async () => {
 	for (const chat of chats.value.values()) {
-		await getOtherParticipant(chat);
+		await getOtherParticipant(chat)
 	}
-};
+}
 
 // 监听聊天列表变化
 watch(
 	() => chats.value,
-	async (newChats) => {
-		if (!newChats || !chatStore.initialized) return;
-		clearParticipantCache();
-		await loadAllParticipants();
+	async newChats => {
+		if (!newChats || !chatStore.initialized) return
+		clearParticipantCache()
+		await loadAllParticipants()
 	},
 	{ deep: true }
-);
+)
 
 // 在组件挂载时加载参与者信息
 onMounted(async () => {
-	console.log("Home 组件挂载");
 	// 如果已经初始化过了，才加载参与者信息
 	if (chatStore.initialized) {
-		console.log("开始加载参与者信息");
-		await loadAllParticipants();
-		
+		await loadAllParticipants()
 		if (selectedChat.value) {
-			chatStore.clearUnread(selectedChat.value.id);
+			chatStore.clearUnread(selectedChat.value.id)
 		}
 	}
 
 	try {
-		await chatStore.loadChats();
+		await chatStore.loadChats()
 	} catch (error) {
-		console.error('加载聊天列表失败:', error);
-		toast({
-			variant: 'destructive',
-			title: '加载失败',
-			description: '无法加载聊天列表'
-		});
+		console.error('加载聊天列表失败:', error)
+		toastService.error('加载失败', '无法加载聊天列表')
 	}
-});
+})
 
 // 监听聊天初始化完成
 watch(
 	() => chatStore.initialized,
-	async (newValue) => {
+	async newValue => {
 		if (newValue) {
-			console.log("聊天初始化完成，开始加载参与者信息");
-			await loadAllParticipants();
+			console.log('聊天初始化完成，开始加载参与者信息')
+			await loadAllParticipants()
 		}
 	}
-);
-
+)
 
 // 清除缓存的辅助方法
 const clearParticipantCache = (chatId?: number) => {
 	if (chatId) {
-		participantsCache.value.delete(chatId);
+		participantsCache.value.delete(chatId)
 	} else {
-		participantsCache.value.clear();
+		participantsCache.value.clear()
 	}
-};
+}
 
 // 选择聊天
 const selectChat = (chat: ChatInfo) => {
 	router.push({
 		name: 'chat',
 		params: {
-			chatId: chat.id.toString()
-		}
-	});
-	chatStore.clearUnread(chat.id);
+			chatId: chat.id.toString(),
+		},
+	})
+	chatStore.clearUnread(chat.id)
 	nextTick(() => {
-		scrollToBottom();
-	});
+		scrollToBottom()
+	})
 }
 
 // 监听路由变化，自动选择聊天
 watch(
 	() => route.params.chatId,
-	(chatId) => {
-		console.log('Available chats:', Array.from(chats.value.entries()));
-		
+	chatId => {
+		console.log('Available chats:', Array.from(chats.value.entries()))
+
 		if (chatId) {
-			const chat = chats.value.get(Number(chatId));
-			console.log('Found chat:', chat);
+			const chat = chats.value.get(Number(chatId))
+			console.log('Found chat:', chat)
 			if (chat) {
-				selectedChat.value = chat;
-				chatStore.clearUnread(chat.id);
+				selectedChat.value = chat
+				chatStore.clearUnread(chat.id)
 				// 加入聊天室
-				wsService.joinChat(chat.id);
+				wsService.joinChat(chat.id)
 				nextTick(() => {
-					scrollToBottom();
-				});
+					scrollToBottom()
+				})
 			} else {
-				console.error('Chat not found:', chatId);
+				console.error('Chat not found:', chatId)
 				// 可能需要添加错误提示
-				toast({
-					variant: 'destructive',
-					title: '聊天不存在',
-					description: '请重新选择聊天'
-				});
+				toastService.error('聊天不存在', '请重新选择聊天')
 			}
 		} else {
-			selectedChat.value = null;
+			selectedChat.value = null
 		}
 	},
 	{ immediate: true }
-);
+)
 
 // 格式化时间
 const formatTime = (timestamp: string) => {
@@ -469,116 +423,88 @@ const formatTime = (timestamp: string) => {
 
 // 修改发送消息的方法
 const sendMessage = async () => {
-	if (!message.value.trim() || !selectedChat.value) return;
+	if (!message.value.trim() || !selectedChat.value) return
 
-	handleStopTyping();
-	console.log(TAG, '发送消息:', selectedChat.value);
-	
-	const otherParticipant = await getOtherParticipant(selectedChat.value);
+	handleStopTyping()
+	console.log(TAG, '发送消息:', selectedChat.value)
+
+	const otherParticipant = await getOtherParticipant(selectedChat.value)
 	if (!otherParticipant) {
-		toast({
-			variant: "destructive",
-			title: "发送失败",
-			description: "找不到聊天对象",
-		});
-		return;
+		toastService.error('发送失败', '找不到聊天对象')
+		return
 	}
 
-	const success = await messageService.sendTextMessage(
-		selectedChat.value.id,
-		otherParticipant.id,
-		message.value
-	);
+	const success = await messageService.sendTextMessage(selectedChat.value.id, otherParticipant.id, message.value)
 
 	if (success) {
-		message.value = "";
+		message.value = ''
 	} else {
-		toast({
-			variant: "destructive",
-			title: "发送失败",
-			description: "请稍后重试",
-		});
+		toastService.error('发送失败', '请稍后重试')
 	}
-};
+}
 
 // 修改 handleFocusOut 的类型
 const handleFocusOut = (event: FocusEvent) => {
-	const target = event.relatedTarget as HTMLElement | null;
+	const target = event.relatedTarget as HTMLElement | null
 	if (target?.closest('button')?.textContent?.trim() === '发送') {
-		return;
+		return
 	}
-	handleStopTyping();
-};
+	handleStopTyping()
+}
 
 // 修改文件上传方法
 const handleFileUpload = async (event: Event) => {
-	const input = event.target as HTMLInputElement;
-	const file = input.files?.[0];
-	if (!file || !selectedChat.value) return;
+	const input = event.target as HTMLInputElement
+	const file = input.files?.[0]
+	if (!file || !selectedChat.value) return
 
-	const otherParticipant = await getOtherParticipant(selectedChat.value);
+	const otherParticipant = await getOtherParticipant(selectedChat.value)
 	if (!otherParticipant) {
-		toast({
-			variant: "destructive",
-			title: "发送失败",
-			description: "找不到聊天对象",
-		});
-		return;
+		toastService.error('发送失败', '找不到聊天对象')
+		return
 	}
 
-	let success = false;
-	if (file.type.startsWith("image/")) {
-		success = await messageService.sendImageMessage(
-			selectedChat.value.id,
-			otherParticipant.id,
-			file
-		);
+	let success = false
+	if (file.type.startsWith('image/')) {
+		success = await messageService.sendImageMessage(selectedChat.value.id, otherParticipant.id, file)
 	} else {
-		success = await messageService.sendFileMessage(
-			selectedChat.value.id,
-			otherParticipant.id,
-			file
-		);
+		success = await messageService.sendFileMessage(selectedChat.value.id, otherParticipant.id, file)
 	}
 
 	if (!success) {
-		toast({
-			variant: "destructive",
-			title: "发送失败",
-			description: "请稍后重试",
-		});
+		toastService.error('发送失败', '请稍后重试')
 	}
 
 	// 清除input的值，允许重复上传相同文件
-	input.value = "";
-};
+	input.value = ''
+}
 
 // 处理消息重发
 const handleResend = async (messageId: number) => {
-	const success = await messageStore.resendMessage(messageId);
+	const success = await messageStore.resendMessage(messageId)
 	if (!success) {
-		toast({
-			variant: "destructive",
-			title: "重发失败",
-			description: "请稍后重试",
-		});
+		toastService.error('重发失败', '请稍后重试')
 	}
-};
+}
 
 // 滚动到底部
 const scrollToBottom = () => {
 	if (messageList.value) {
-		messageList.value.scrollTop = messageList.value.scrollHeight;
+		messageList.value.scrollTop = messageList.value.scrollHeight
 	}
-};
+}
 
 // 监听消息变化，自动滚动到底部
-watch(messageGroups, (newMessages) => {
-	console.log('Messages updated:', newMessages);
-	nextTick(() => {
-		scrollToBottom();
-	});
-}, { deep: true });
+watch(
+	messageGroups,
+	newMessages => {
+		console.log('Messages updated:', newMessages)
+		nextTick(() => {
+			scrollToBottom()
+		})
+	},
+	{ deep: true }
+)
 
 // 在进入页面时清除该页面聊天的未读数
 onMounted(() => {
@@ -587,40 +513,40 @@ onMounted(() => {
 	}
 
 	if (wsService.socket) {
-		typingManager.value = new ChatTypingManager(wsService.socket);
+		typingManager.value = new ChatTypingManager(wsService.socket)
 		typingManager.value.on('typingStatusChanged', ({ chatId, userId, typing }) => {
 			if (selectedChat.value?.id === chatId && userId !== userStore.userInfo?.id) {
 				if (typing && !typingUsers.value.includes(userId)) {
-					typingUsers.value.push(userId);
+					typingUsers.value.push(userId)
 				} else if (!typing) {
-					typingUsers.value = typingUsers.value.filter(id => id !== userId);
+					typingUsers.value = typingUsers.value.filter(id => id !== userId)
 				}
 			}
-		});
+		})
 	}
-});
+})
 
 // 处理输入变化
 const handleInput = () => {
-	if (!selectedChat.value || !userStore.userInfo || !typingManager.value) return;
-	
-	typingManager.value.startTyping(selectedChat.value.id, userStore.userInfo.user_id);
-};
+	if (!selectedChat.value || !userStore.userInfo || !typingManager.value) return
+
+	typingManager.value.startTyping(selectedChat.value.id, userStore.userInfo.id)
+}
 
 // 处理输入停止
 const handleStopTyping = () => {
-	if (!selectedChat.value || !userStore.userInfo || !typingManager.value) return;
-	
-	typingManager.value.stopTyping(selectedChat.value.id, userStore.userInfo.user_id);
-};
+	if (!selectedChat.value || !userStore.userInfo || !typingManager.value) return
+
+	typingManager.value.stopTyping(selectedChat.value.id, userStore.userInfo.id)
+}
 
 // 组件卸载时离开聊天室
 onUnmounted(() => {
 	if (selectedChat.value) {
-		wsService.leaveChat(selectedChat.value.id);
+		wsService.leaveChat(selectedChat.value.id)
 	}
-	typingManager.value?.destroy();
-});
+	typingManager.value?.destroy()
+})
 </script>
 
 <style scoped>

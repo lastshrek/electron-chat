@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:09:17
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-19 19:54:47
+ * @LastEditTime : 2025-02-26 13:19:41
  * @FilePath     : /src/views/Login/Login.vue
  * @Description  : Login page
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -11,12 +11,9 @@
 <script setup lang="ts">
 	import {ref} from "vue";
 	import {useRouter} from "vue-router";
-	import {Button} from "@/components/ui/button";
 	import {useUserStore} from "@/stores/user";
 	import {encrypt} from "@/utils/crypto";
 	import {Eye, EyeOff} from "lucide-vue-next";
-	import {authApi} from "@/api/auth";
-	import {handleApiError} from "@/utils/error";
 	import {toast} from "@/components/ui/toast/use-toast";
 
 	const router = useRouter();
@@ -28,15 +25,15 @@
 	const showPassword = ref(false);
 	const loading = ref(false);
 
-	console.log('Login component mounted');
+	console.log("Login component mounted");
 
 	const handleSubmit = async (e: Event) => {
-		console.log('Form submit event:', e);
+		console.log("Form submit event:", e);
 		e.preventDefault();
-		
+
 		try {
 			if (!username.value || !password.value) {
-				console.log('Validation failed:', { username: username.value });
+				console.log("Validation failed:", {username: username.value});
 				toast({
 					title: "错误",
 					description: "请输入用户名和密码",
@@ -44,10 +41,10 @@
 				});
 				return;
 			}
-			
+
 			await handleLogin();
 		} catch (error) {
-			console.error('Submit error:', error);
+			console.error("Submit error:", error);
 		}
 	};
 
@@ -146,10 +143,7 @@
 				</div>
 
 				<!-- 登录表单 -->
-				<form 
-					@submit.prevent="handleSubmit"
-					class="space-y-4"
-				>
+				<form @submit.prevent="handleSubmit" class="space-y-4">
 					<!-- 用户名输入框 -->
 					<div class="space-y-2">
 						<label
@@ -216,12 +210,12 @@
 					</div>
 
 					<!-- 登录按钮 -->
-					<button 
+					<button
 						type="submit"
 						:disabled="loading"
 						class="w-full h-10 px-4 py-2 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 shadow"
 					>
-						{{ loading ? '登录中...' : '登录' }}
+						{{ loading ? "登录中..." : "登录" }}
 					</button>
 
 					<!-- 注册链接 -->

@@ -1,0 +1,43 @@
+/* 自定义 Toast 关闭按钮样式 */
+.toast-close {
+	position: absolute;
+	top: 0.5rem;
+	right: 0.5rem;
+	width: 1.5rem;
+	height: 1.5rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 9999px;
+	background-color: transparent;
+	border: none;
+	cursor: pointer;
+	color: hsl(var(--foreground));
+	opacity: 0.7;
+	transition: opacity 0.2s, background-color 0.2s;
+}
+
+.toast-close:hover {
+	opacity: 1;
+	background-color: hsl(var(--muted));
+}
+
+.toast-close:focus {
+	outline: 2px solid hsl(var(--ring));
+	outline-offset: 1px;
+}
+
+.toast-close svg {
+	width: 1rem;
+	height: 1rem;
+}
+
+/* 确保 Toast 内容有足够的右边距，避免与关闭按钮重叠 */
+.toast-content {
+	padding-right: 2rem;
+}
+
+/* 确保 Toast 有相对定位，这样关闭按钮可以绝对定位 */
+.toast-root {
+	position: relative;
+}

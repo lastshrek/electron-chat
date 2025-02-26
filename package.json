@@ -1,40 +1,20 @@
 {
 	"name": "electron-vuevite-quick-start",
 	"productName": "Electron VueVite - Quick Start",
-	"version": "0.3.1",
+	"version": "1.0.0",
 	"description": "Your awesome app description",
-	"main": "build/electron/main.js",
-	"author": {
-		"name": "Heliomar P. Marques",
-		"email": "heliomarpm@proton.me",
-		"url": "https://navto.me/heliomarpm"
-	},
+	"main": "dist-electron/main.js",
 	"private": true,
 	"license": "MIT",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/heliomarpm/electron-vuevite-quick-start.git"
 	},
-	"bugs": {
-		"url": "https://github.com/heliomarpm/electron-vuevite-quick-start/issues"
-	},
-	"homepage": "https://github.com/heliomarpm/electron-vuevite-quick-start#readme",
-	"keywords": [
-		"electron",
-		"electron-quick-start",
-		"electron-app",
-		"electron-vue",
-		"electron-vite",
-		"electron-builder",
-		"vuejs",
-		"vue3",
-		"vitejs"
-	],
 	"scripts": {
 		"start": "yarn dev:all",
 		"dev": "vite --mode electron",
-		"dev:web": "vite --mode development",
-		"dev:electron": "vite --mode electron",
+		"dev:web": "vite --mode development --port 5173",
+		"dev:electron": "vite --mode electron --port 3864",
 		"dev:all": "concurrently \"yarn dev:web\" \"yarn dev:electron\"",
 		"dev:test": "vite --mode test",
 		"build": "vue-tsc && vite build --mode electron.production && electron-builder",
