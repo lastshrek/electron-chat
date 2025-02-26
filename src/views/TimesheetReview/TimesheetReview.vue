@@ -144,12 +144,14 @@ const filteredRecords = computed(() => {
     // 状态过滤
     let matchesStatus = true
     if (selectedStatus.value !== '全部状态') {
-      const statusMap = {
+      const statusMap: Record<string, string> = {
         '待审核': 'pending',
         '已通过': 'approved',
         '已驳回': 'rejected'
       }
-      matchesStatus = record.status === statusMap[selectedStatus.value]
+      if (selectedStatus.value in statusMap) {
+        matchesStatus = record.status === statusMap[selectedStatus.value as keyof typeof statusMap]
+      }
     }
     
     return matchesSearch && matchesDepartment && matchesStatus
