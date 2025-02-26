@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:08:47
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-26 13:19:33
+ * @LastEditTime : 2025-02-26 19:00:23
  * @FilePath     : /src/views/Contacts/Contacts.vue
  * @Description  : Contacts page
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -19,21 +19,71 @@
 					<input
 						type="text"
 						placeholder="搜索联系人"
-						class="w-full pl-9 pr-4 py-2 bg-white rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+						class="w-full pl-9 pr-16 py-2 bg-white rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 						v-model="searchKeyword"
-						@input="handleSearch"
+						@input="debounceSearch"
+						@keyup.enter="handleSearch"
 					/>
+					<!-- 搜索按钮 -->
+					<button
+						v-if="!searchKeyword"
+						class="absolute right-3 top-1/2 -translate-y-1/2 text-blue-500 hover:text-blue-700 transition-colors"
+						@click="handleSearch"
+					>
+						<ArrowRight class="w-4 h-4" />
+					</button>
+					<!-- 清除按钮 -->
+					<button
+						v-else
+						class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+						@click="clearSearch"
+					>
+						<X class="w-4 h-4" />
+					</button>
 				</div>
 			</div>
 
 			<!-- 联系人分组列表 -->
-			<div class="contacts-list">
+			<div class="contacts-list" v-if="!searchKeyword">
 				<div v-for="group in contactGroups" :key="group.id" class="group">
 					<div class="flex items-center p-2 cursor-pointer hover:bg-slate-100" @click="toggleGroup(group)">
 						<component :is="group.expanded ? ChevronDown : ChevronRight" class="w-4 h-4 mr-2" />
 						<component :is="group.icon" class="w-4 h-4 mr-2" />
 						<span class="text-sm">{{ group.title }}</span>
 						<span class="ml-2 text-xs text-slate-400">({{ group.count }})</span>
+					</div>
+
+					<!-- 好友请求列表 -->
+					<div v-if="group.id === 'new-friends'" class="pl-4">
+						<div v-show="group.expanded">
+							<div
+								v-for="request in newFriendRequests"
+								:key="request.id"
+								class="flex items-center p-2 cursor-pointer hover:bg-slate-100"
+								@click="
+									handleSelectContact({
+										id: request.from.id,
+										username: request.from.username,
+										name: request.from.username,
+										avatar: request.from.avatar,
+										description: `好友请求 - ${request.from.username}`,
+										isFriend: false,
+									})
+								"
+							>
+								<div class="relative">
+									<img :src="request.from.avatar" :alt="request.from.username" class="w-8 h-8 rounded-full mr-2" />
+									<div
+										class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center"
+									>
+										<span class="text-white text-xs">!</span>
+									</div>
+								</div>
+								<span class="text-sm">{{ request.from.username }}</span>
+								<span class="ml-2 text-xs text-blue-500">(请求添加好友)</span>
+							</div>
+							<div v-if="!newFriendRequests.length" class="p-2 text-sm text-gray-500">暂无好友请求</div>
+						</div>
 					</div>
 
 					<!-- 组织架构内容 -->
@@ -60,20 +110,57 @@
 								class="flex items-center p-2 cursor-pointer hover:bg-slate-100"
 								@click="
 									handleSelectContact({
-										id: friend.friend.id,
-										username: friend.friend.username,
-										name: friend.friend.username,
-										avatar: friend.friend.avatar,
-										description: `好友 - ${friend.friend.username}`,
+										id: friend.id,
+										username: friend.username,
+										name: friend.name || friend.username,
+										avatar: friend.avatar,
+										description: friend.isFriend ? `好友 - ${friend.username}` : `用户 - ${friend.username}`,
 										isFriend: true,
 									})
 								"
 							>
-								<img :src="friend.friend.avatar" :alt="friend.friend.username" class="w-8 h-8 rounded-full mr-2" />
-								<span class="text-sm">{{ friend.friend.username }}</span>
+								<img :src="friend.avatar" :alt="friend.username" class="w-8 h-8 rounded-full mr-2" />
+								<span class="text-sm">{{ friend.name || friend.username }}</span>
 							</div>
 							<div v-if="!friends.length" class="p-2 text-sm text-gray-500">暂无好友</div>
 						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- 搜索结果 -->
+			<div v-else class="contacts-list">
+				<div class="group">
+					<div class="flex items-center p-2 bg-blue-50">
+						<Search class="w-4 h-4 mr-2 text-blue-500" />
+						<span class="text-sm font-medium text-blue-700">搜索结果</span>
+						<span class="ml-2 text-xs text-blue-500">({{ filteredFriends.length }})</span>
+					</div>
+
+					<div class="pl-4">
+						<div
+							v-for="user in filteredFriends"
+							:key="user.id"
+							class="flex items-center p-2 cursor-pointer hover:bg-slate-100"
+							@click="
+								handleSelectContact({
+									id: user.id,
+									username: user.username,
+									name: user.name || user.username,
+									avatar: user.avatar,
+									description: user.isFriend ? `好友 - ${user.username}` : `用户 - ${user.username}`,
+									isFriend: user.isFriend,
+								})
+							"
+						>
+							<img :src="user.avatar" :alt="user.username" class="w-8 h-8 rounded-full mr-2" />
+							<span class="text-sm">{{ user.name || user.username }}</span>
+							<span v-if="user.isFriend" class="ml-2 text-xs text-green-500">(好友)</span>
+							<span v-else class="ml-2 text-xs text-blue-500">(非好友)</span>
+						</div>
+
+						<!-- 搜索无结果提示 -->
+						<div v-if="filteredFriends.length === 0" class="p-4 text-center text-gray-500">未找到匹配的用户</div>
 					</div>
 				</div>
 			</div>
@@ -247,18 +334,21 @@ import {
 	Phone,
 	Video,
 	Building2,
+	ArrowRight,
+	X,
 } from 'lucide-vue-next'
 import { authApi } from '@/api/auth'
 import { toastService } from '@/services/toast'
 import { useUserStore } from '@/stores/user'
 import { handleApiError } from '@/utils/error'
 import { eventBus } from '@/utils/eventBus'
-import type { FriendRequest, OrganizationNode, DepartmentUser } from '@/types/api'
+import type { FriendRequest, OrganizationNode, DepartmentUser, Friend } from '@/types/api'
 import { useRouter } from 'vue-router'
 import { useChatStore } from '@/stores/chat'
 import OrganizationTree from '@/components/OrganizationTree.vue'
 // 导入拼音排序工具
 import { pinyin } from 'pinyin-pro'
+import router from '@/router'
 
 // 定义常量
 const TAG = '👨‍🚀 Contacts.vue'
@@ -269,6 +359,19 @@ const chatStore = useChatStore()
 
 // 搜索相关
 const searchKeyword = ref('')
+
+// 添加防抖函数
+let searchTimeout: number | null = null
+
+const debounceSearch = () => {
+	if (searchTimeout) {
+		clearTimeout(searchTimeout)
+	}
+
+	searchTimeout = setTimeout(() => {
+		handleSearch()
+	}, 300) as unknown as number
+}
 
 // 类型定义
 interface SearchUser {
@@ -283,14 +386,11 @@ interface SearchUser {
 
 interface FriendListItem {
 	id: number
-	userId: number
-	friendId: number
-	createdAt: string
-	friend: {
-		id: number
-		username: string
-		avatar: string
-	}
+	username: string
+	name: string
+	avatar: string
+	description: string
+	isFriend: boolean
 }
 
 interface ContactGroup {
@@ -312,10 +412,18 @@ const isLoadingUsers = ref(false)
 // 联系人分组
 const contactGroups = ref<ContactGroup[]>([
 	{
+		id: 'new-friends',
+		title: '新的朋友',
+		icon: UserPlus,
+		expanded: true,
+		count: 0,
+		items: [],
+	},
+	{
 		id: 'friends',
 		title: '我的好友',
 		icon: Users,
-		expanded: false,
+		expanded: true,
 		count: 0,
 		items: [],
 	},
@@ -329,30 +437,58 @@ const contactGroups = ref<ContactGroup[]>([
 	},
 ])
 
-// 搜索处理
-const handleSearch = () => {
-	// 实现搜索逻辑
-	console.log('搜索关键词:', searchKeyword.value)
-}
+// 过滤后的好友列表
+const filteredFriends = ref<FriendListItem[]>([])
 
 // 新朋友列表
 const newFriendRequests = ref<FriendRequest[]>([])
-const router = useRouter()
 
 // 获取好友列表
-const getFriendsList = async () => {}
+const getFriendsList = async () => {
+	try {
+		const response = (await authApi.getFriends()) as unknown as Friend[]
+		console.log('获取到的好友列表:', response)
 
-// 初始化好友请求列表
+		// 将好友列表转换为统一格式
+		friends.value = response.map(friend => ({
+			id: friend.friend.id,
+			username: friend.friend.username,
+			name: friend.friend.username, // 使用 username 作为 name
+			avatar: friend.friend.avatar,
+			description: `好友 - ${friend.friend.username}`,
+			isFriend: true,
+		}))
+
+		// 初始化过滤后的好友列表
+		filteredFriends.value = friends.value
+
+		// 更新好友分组计数
+		const friendsGroup = contactGroups.value.find(group => group.id === 'friends')
+		if (friendsGroup) {
+			friendsGroup.count = friends.value.length
+		}
+	} catch (error) {
+		console.error('获取好友列表失败:', error)
+		toastService.error('获取好友列表失败', '请稍后重试')
+	}
+}
+
+// 初始化好友请求
 const initFriendRequests = async () => {
 	try {
+		console.log(TAG, '开始获取好友请求')
 		const response = await authApi.getFriendRequests('PENDING')
-		console.log(TAG, '获取好友请求成功:', response)
+		console.log(TAG, '获取到的好友请求:', response)
 
 		// 使用双重类型断言来安全地转换类型
 		const requests = response as unknown as FriendRequest[]
 		newFriendRequests.value = requests
+
 		// 更新新朋友数量
-		contactGroups.value[0].count = newFriendRequests.value.length
+		const newFriendsGroup = contactGroups.value.find(group => group.id === 'new-friends')
+		if (newFriendsGroup) {
+			newFriendsGroup.count = newFriendRequests.value.length
+		}
 	} catch (error) {
 		console.error(TAG, '获取好友请求失败:', error)
 		const apiError = handleApiError(error)
@@ -604,15 +740,11 @@ const organizationStructure = ref<OrganizationNode[]>([])
 // 初始化组织架构
 const initOrganizations = async () => {
 	try {
-		console.log('开始获取组织架构数据')
 		const response = await authApi.getOrganizations()
-		console.log('获取到的原始数据:', response)
 
 		// 直接使用 response，因为它已经是数组了
 		if (Array.isArray(response) && response.length > 0) {
 			const orgData = response[0] // 获取根节点
-			console.log('根节点数据:', orgData)
-
 			// 处理数据，保持后端返回的用户数量字段
 			const processNode = (node: OrganizationNode): OrganizationNode => {
 				// 处理子节点
@@ -631,7 +763,6 @@ const initOrganizations = async () => {
 
 			// 处理整个组织架构树
 			organizationStructure.value = [processNode(orgData)]
-			console.log('处理后的组织架构数据:', organizationStructure.value)
 
 			// 添加到分组中
 			const orgGroup = contactGroups.value.find(group => group.id === 'organization')
@@ -639,7 +770,6 @@ const initOrganizations = async () => {
 				orgGroup.count = countTotalDepartments(organizationStructure.value)
 				// 默认展开组织架构
 				orgGroup.expanded = true
-				console.log('组织架构分组:', orgGroup)
 			}
 		}
 	} catch (error) {
@@ -672,6 +802,52 @@ const handleDepartmentUserClick = (user: DepartmentUser) => {
 		avatar: user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user.name || ''}`,
 		description: user.dutyName || '暂无职位',
 	})
+}
+
+// 处理搜索
+const handleSearch = async () => {
+	console.log('搜索关键词:', searchKeyword.value)
+
+	// 如果搜索框为空，恢复原始列表
+	if (!searchKeyword.value.trim()) {
+		filteredFriends.value = friends.value
+		return
+	}
+
+	try {
+		// 调用搜索接口
+		const searchResults = (await authApi.searchUsers(searchKeyword.value)) as unknown as SearchUser[]
+		console.log('搜索结果:', searchResults)
+
+		// 处理搜索结果
+		if (Array.isArray(searchResults) && searchResults.length > 0) {
+			// 将搜索结果转换为好友列表格式
+			filteredFriends.value = searchResults.map(user => ({
+				id: user.id,
+				username: user.username,
+				name: user.name || user.username,
+				avatar: user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user.username}`,
+				// 检查是否已经是好友
+				isFriend: friends.value.some(friend => friend.id === user.id),
+				description: user.description || `用户 - ${user.username}`,
+			}))
+			console.log('处理后的搜索结果:', filteredFriends.value)
+		} else {
+			// 如果没有搜索结果，显示空列表
+			filteredFriends.value = []
+		}
+	} catch (error) {
+		console.error('搜索用户失败:', error)
+		toastService.error('搜索失败', '请稍后重试')
+		// 搜索失败时，显示空列表
+		filteredFriends.value = []
+	}
+}
+
+// 清除搜索
+const clearSearch = () => {
+	searchKeyword.value = ''
+	filteredFriends.value = []
 }
 </script>
 

@@ -33,6 +33,13 @@ export const useMessageStore = defineStore('message', {
 	actions: {
 		addMessage(message: Message) {
 			console.log('Adding message:', message)
+
+			// 确保消息有chatId
+			if (!message.chatId) {
+				console.error('消息缺少chatId:', message)
+				return
+			}
+
 			const chatMessages = this.messages.get(message.chatId) || []
 
 			// 检查消息是否已存在
@@ -112,7 +119,7 @@ export const useMessageStore = defineStore('message', {
 				let success = false
 
 				switch (messageToResend.type) {
-					case 'text':
+					case 'TEXT':
 						success = await messageService.sendTextMessage(
 							chatId,
 							messageToResend.receiverId,
@@ -120,13 +127,13 @@ export const useMessageStore = defineStore('message', {
 							messageId // 传递原始消息ID
 						)
 						break
-					case 'image':
+					case 'IMAGE':
 						// 对于图片和文件，可能需要重新上传
 						// 这里简化处理，实际可能需要缓存文件或重新获取
 						console.warn('Resending image messages not fully implemented')
 						success = false
 						break
-					case 'file':
+					case 'FILE':
 						console.warn('Resending file messages not fully implemented')
 						success = false
 						break
@@ -146,6 +153,58 @@ export const useMessageStore = defineStore('message', {
 				this.updateMessageStatus(messageId, MessageStatus.FAILED)
 				return false
 			}
+		},
+
+		// 设置消息
+		setMessages(chatId: number, messages: any[]) {
+			// 清空现有消息
+			this.clearChatMessages(chatId)
+
+			// 添加新消息
+			messages.forEach(message => {
+				this.addMessage({
+					id: message.id,
+					content: message.content,
+					type: message.type,
+					status: message.status,
+					createdAt: message.createdAt,
+					receiver: message.receiver,
+					chatId: message.chatId,
+					sender: message.sender,
+					senderId: message.senderId,
+					receiverId: message.receiverId,
+					metadata: message.metadata,
+					updatedAt: message.updatedAt,
+				})
+			})
+		},
+
+		// 清空聊天消息
+		clearChatMessages(chatId: number) {
+			const chatMessages = this.messages.get(chatId)
+			if (chatMessages) {
+				this.messages.set(chatId, [])
+			}
+		},
+
+		findMessageById(messageId: number): Message | null {
+			for (const messages of this.messages.values()) {
+				const message = messages.find(m => m.id === messageId)
+				if (message) {
+					return message
+				}
+			}
+			return null
+		},
+
+		markMessagesAsRead(chatId: number, messageIds: number[]) {
+			// 更新消息状态
+			for (const messageId of messageIds) {
+				this.updateMessageStatus(messageId, MessageStatus.READ)
+			}
+
+			// 通知服务器消息已读
+			messageService.markMessagesAsRead(chatId, messageIds)
 		},
 	},
 })

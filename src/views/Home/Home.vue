@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:28:39
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-26 14:30:04
+ * @LastEditTime : 2025-02-26 20:24:46
  * @FilePath     : /src/views/Home/Home.vue
  * @Description  : 
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -17,54 +17,63 @@
 			</div>
 
 			<!-- 会话列表 -->
-			<div class="flex-1 min-h-0" :class="{ 'overflow-y-auto': chats.size > 0, 'overflow-hidden': chats.size === 0 }">
-				<div class="p-2 space-y-1 h-full">
-					<!-- 无会话时显示提示 -->
-					<div v-if="chats.size === 0" class="flex flex-col items-center justify-center h-full text-gray-400">
-						<MessageSquare class="w-12 h-12 mb-4" />
-						<p class="text-sm">暂无会话</p>
-						<p class="text-xs mt-2">去联系人页面添加好友开始聊天吧</p>
-					</div>
-
-					<!-- 会话列表项 -->
+			<div class="flex-1 overflow-y-auto">
+				<div v-if="chatsArray.length > 0">
 					<div
-						v-else
-						v-for="chat in Array.from(chats.values())"
+						v-for="chat in chatsArray"
 						:key="chat.id"
-						class="p-3 rounded-lg hover:bg-slate-100 cursor-pointer flex items-center space-x-3"
-						:class="{ 'bg-slate-100': route.params.chatId === chat.id.toString() }"
+						class="flex items-center p-4 cursor-pointer hover:bg-slate-100 transition-colors"
+						:class="{ 'bg-blue-50': selectedChat?.id === chat.id }"
 						@click="selectChat(chat)"
 					>
 						<!-- 头像 -->
 						<div class="relative">
-							<AsyncImage
-								:src="otherParticipants.get(chat.id)?.avatar"
-								:alt="otherParticipants.get(chat.id)?.username"
-								class="w-12 h-12 rounded-lg hover:rounded-3xl transition-all duration-300"
+							<img
+								:src="chat.otherUser?.avatar || 'https://api.dicebear.com/7.x/initials/svg?seed=Group'"
+								:alt="chat.otherUser?.username || chat.name || '聊天'"
+								class="w-12 h-12 rounded-full object-cover"
 							/>
+							<!-- 未读消息提示 -->
 							<div
 								v-if="chat.unreadCount > 0"
-								class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-medium"
+								class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
 							>
-								{{ chat.unreadCount }}
+								{{ chat.unreadCount > 99 ? '99+' : chat.unreadCount }}
 							</div>
 						</div>
 
-						<!-- 内容 -->
-						<div class="flex-1 min-w-0">
-							<div class="flex items-center justify-between">
-								<span class="font-medium truncate">
-									{{ otherParticipants.get(chat.id)?.username }}
-								</span>
-								<span v-if="chat.lastMessage" class="text-xs text-slate-400">
-									{{ formatTime(chat.lastMessage.timestamp) }}
+						<!-- 聊天信息 -->
+						<div class="ml-3 flex-1 min-w-0">
+							<div class="flex justify-between items-center">
+								<h3 class="font-medium text-sm truncate">
+									{{ chat.otherUser?.username || chat.name || '未命名聊天' }}
+								</h3>
+								<span class="text-xs text-gray-500">
+									{{ formatTime(chat.lastMessage?.createdAt) }}
 								</span>
 							</div>
-							<div class="text-sm text-slate-500 truncate">
-								{{ chat.lastMessage?.content || '暂无消息' }}
+							<div class="flex justify-between items-center mt-1">
+								<p class="text-sm text-gray-500 truncate">
+									{{ getLastMessagePreview(chat.lastMessage) }}
+								</p>
+								<!-- 消息状态指示器 -->
+								<div
+									v-if="chat.lastMessage && chat.lastMessage.senderId === userStore.userInfo?.id"
+									class="ml-2 flex-shrink-0"
+								>
+									<Check v-if="chat.lastMessage.status === 'SENT'" class="w-4 h-4 text-gray-400" />
+									<CheckCheck v-else-if="chat.lastMessage.status === 'DELIVERED'" class="w-4 h-4 text-gray-400" />
+									<CheckCheck v-else-if="chat.lastMessage.status === 'READ'" class="w-4 h-4 text-blue-500" />
+									<AlertCircle v-else-if="chat.lastMessage.status === 'FAILED'" class="w-4 h-4 text-red-500" />
+								</div>
 							</div>
 						</div>
 					</div>
+				</div>
+				<div v-else class="flex flex-col items-center justify-center h-full p-6 text-center">
+					<MessageSquare class="w-12 h-12 text-gray-300 mb-4" />
+					<p class="text-gray-500">暂无聊天记录</p>
+					<p class="text-sm text-gray-400 mt-2">在联系人中选择好友开始聊天</p>
 				</div>
 			</div>
 		</div>
@@ -76,7 +85,7 @@
 				<div class="h-14 border-b flex items-center px-4 shrink-0">
 					<div class="flex items-center truncate">
 						<h2 class="font-medium truncate">
-							{{ otherParticipants.get(selectedChat.id)?.username }}
+							{{ selectedChat?.otherUser?.username || selectedChat?.name || '聊天' }}
 						</h2>
 					</div>
 				</div>
@@ -157,27 +166,17 @@
 					</template>
 				</div>
 
-				<!-- 在消息列表和输入框之间显示正在输入的用户 -->
-				<div v-if="typingUsers.length > 0" class="px-4 py-2 flex items-center bg-transparent">
-					<div class="inline-flex items-center space-x-2 rounded-full px-3 py-1.5">
-						<!-- 用户头像 -->
-						<div class="flex -space-x-2">
-							<img
-								v-for="userId in typingUsers.slice(0, 2)"
-								:key="userId"
-								:src="chats.get(Number(route.params.chatId))?.participants.find(p => p.id === userId)?.avatar"
-								:alt="chats.get(Number(route.params.chatId))?.participants.find(p => p.id === userId)?.username"
-								class="w-6 h-6 rounded-full border-2 border-white"
-							/>
-							<div
-								v-if="typingUsers.length > 2"
-								class="w-6 h-6 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center"
-							>
-								<span class="text-xs text-slate-500">+{{ typingUsers.length - 2 }}</span>
-							</div>
+				<!-- 在消息列表底部显示打字指示器 -->
+				<div v-if="typingUsers?.length > 0" class="flex items-center gap-2 mb-2">
+					<div class="flex-shrink-0">
+						<img v-if="getTypingUserAvatar()" :src="getTypingUserAvatar()" alt="用户头像" class="w-8 h-8 rounded-lg" />
+						<div v-else class="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center">
+							<span class="text-slate-500 text-xs">?</span>
 						</div>
-						<!-- 打字指示器 -->
-						<TypingIndicator />
+					</div>
+					<div class="bg-slate-100 rounded-lg p-2 px-3 flex items-center">
+						<span class="text-sm text-slate-600 mr-2">{{ getTypingUserName() }}</span>
+						<typing-indicator />
 					</div>
 				</div>
 
@@ -237,11 +236,25 @@ import type { ChatInfo } from '@/stores/chat'
 import { useMessageStore } from '@/stores/message'
 import { messageService } from '@/services/message'
 import { toastService } from '@/services/toast'
-import { Paperclip, Loader2Icon, CheckIcon, CheckCheckIcon, XIcon, RefreshCwIcon, MessageSquare } from 'lucide-vue-next'
+import {
+	Paperclip,
+	Loader2Icon,
+	CheckIcon,
+	CheckCheckIcon,
+	XIcon,
+	RefreshCwIcon,
+	MessageSquare,
+	Check,
+	CheckCheck,
+	AlertCircle,
+} from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { ChatTypingManager } from '@/utils/chat-typing'
 import TypingIndicator from '@/components/ui/typing-indicator.vue'
 import AsyncImage from '@/components/ui/async-image.vue'
+import { formatDistanceToNow } from 'date-fns'
+import { zhCN } from 'date-fns/locale'
+
 const TAG = '🏠️ Home:'
 const userStore = useUserStore()
 const message = ref('')
@@ -264,6 +277,9 @@ const messageList = ref<HTMLElement | null>(null)
 const typingUsers = ref<number[]>([])
 const typingManager = ref<ChatTypingManager>()
 
+// 加载状态
+const isLoadingMessages = ref(false)
+
 // 修改类型定义
 interface ChatParticipant {
 	chat_id: number
@@ -274,21 +290,8 @@ interface ChatParticipant {
 	id: number // 添加 id 字段
 }
 
-interface OtherParticipant {
-	username: string
-	avatar: string
-	user_id: number
-	chat_id: number
-	friendship_id?: number
-	friend_since?: string
-	id: number // 添加 id 字段
-}
-
 // 修改参与者缓存的类型
 const participantsCache = ref(new Map<number, Array<ChatParticipant>>())
-
-// 修改其他参与者信息的类型
-const otherParticipants = ref(new Map<number, OtherParticipant>())
 
 // 修改获取其他参与者的方法
 const getOtherParticipant = async (chat: ChatInfo) => {
@@ -319,19 +322,39 @@ watch(
 
 // 在组件挂载时加载参与者信息
 onMounted(async () => {
-	// 如果已经初始化过了，才加载参与者信息
-	if (chatStore.initialized) {
-		await loadAllParticipants()
-		if (selectedChat.value) {
-			chatStore.clearUnread(selectedChat.value.id)
-		}
+	// 使用 loadChats 方法代替 fetchChats
+	await chatStore.loadChats()
+
+	if (selectedChat.value) {
+		chatStore.clearUnread(selectedChat.value.id)
 	}
 
-	try {
-		await chatStore.loadChats()
-	} catch (error) {
-		console.error('加载聊天列表失败:', error)
-		toastService.error('加载失败', '无法加载聊天列表')
+	if (wsService.socket) {
+		typingManager.value = new ChatTypingManager(wsService.socket)
+		typingManager.value.on('typingStatusChanged', ({ chatId, userId, typing }) => {
+			if (selectedChat.value?.id === chatId && userId !== userStore.userInfo?.id) {
+				if (typing && !typingUsers.value.includes(userId)) {
+					typingUsers.value.push(userId)
+				} else if (!typing) {
+					typingUsers.value = typingUsers.value.filter(id => id !== userId)
+				}
+			}
+		})
+	}
+
+	// 如果路由中有chatId，选中对应的聊天
+	if (route.params.chatId) {
+		const chatId = Number(route.params.chatId)
+		const chat = chats.value.get(chatId)
+		if (chat) {
+			selectedChat.value = chat
+			chatStore.clearUnread(chat.id)
+			// 加入聊天室
+			wsService.joinChat(chat.id)
+			nextTick(() => {
+				scrollToBottom()
+			})
+		}
 	}
 })
 
@@ -357,32 +380,81 @@ const clearParticipantCache = (chatId?: number) => {
 
 // 选择聊天
 const selectChat = (chat: ChatInfo) => {
-	router.push({
-		name: 'chat',
-		params: {
-			chatId: chat.id.toString(),
-		},
-	})
+	router.push(`/chat/${chat.id}`)
 	chatStore.clearUnread(chat.id)
+
+	// 如果有最后一条消息，则获取该消息周围的消息
+	if (chat.lastMessage) {
+		loadMessagesAround(chat.id, chat.lastMessage.id)
+	} else {
+		// 如果没有最后一条消息，则获取最新的消息
+		loadLatestMessages(chat.id)
+	}
+
 	nextTick(() => {
 		scrollToBottom()
 	})
+}
+
+// 加载消息周围的消息
+const loadMessagesAround = async (chatId: number, messageId: number) => {
+	try {
+		// 显示加载状态
+		isLoadingMessages.value = true
+
+		// 调用API获取消息周围的消息
+		const response = (await messageService.getMessagesAround(chatId, messageId)) as unknown as any[]
+		console.log('加载前20条消息的消息:', response)
+		// 更新消息存储
+		if (response) {
+			messageStore.setMessages(chatId, response.messages)
+		}
+	} catch (error) {
+		console.error('加载消息失败:', error)
+		toastService.error('加载失败', '无法加载聊天记录')
+	} finally {
+		isLoadingMessages.value = false
+	}
+}
+
+// 加载最新的消息
+const loadLatestMessages = async (chatId: number) => {
+	try {
+		// 显示加载状态
+		isLoadingMessages.value = true
+
+		// 调用API获取最新的消息
+		const response = await messageService.getLatestMessages(chatId)
+
+		// 更新消息存储
+		if (response && Array.isArray(response)) {
+			messageStore.setMessages(chatId, response)
+		}
+	} catch (error) {
+		console.error('加载消息失败:', error)
+		toastService.error('加载失败', '无法加载聊天记录')
+	} finally {
+		isLoadingMessages.value = false
+	}
 }
 
 // 监听路由变化，自动选择聊天
 watch(
 	() => route.params.chatId,
 	chatId => {
-		console.log('Available chats:', Array.from(chats.value.entries()))
-
 		if (chatId) {
 			const chat = chats.value.get(Number(chatId))
-			console.log('Found chat:', chat)
 			if (chat) {
 				selectedChat.value = chat
 				chatStore.clearUnread(chat.id)
 				// 加入聊天室
 				wsService.joinChat(chat.id)
+
+				// 加载消息
+				if (chat.lastMessage) {
+					loadMessagesAround(chat.id, chat.lastMessage.id)
+				}
+
 				nextTick(() => {
 					scrollToBottom()
 				})
@@ -390,6 +462,26 @@ watch(
 				console.error('Chat not found:', chatId)
 				// 可能需要添加错误提示
 				toastService.error('聊天不存在', '请重新选择聊天')
+				// 如果找不到聊天，可以重新获取聊天列表
+				// chatStore.loadChats().then(() => {
+				// 	const updatedChat = chats.value.get(Number(chatId))
+				// 	if (updatedChat) {
+				// 		selectedChat.value = updatedChat
+				// 		chatStore.clearUnread(updatedChat.id)
+				// 		wsService.joinChat(updatedChat.id)
+
+				// 		// 加载消息
+				// 		if (updatedChat.lastMessage) {
+				// 			loadMessagesAround(updatedChat.id, updatedChat.lastMessage.id)
+				// 		} else {
+				// 			loadLatestMessages(updatedChat.id)
+				// 		}
+
+				// 		nextTick(() => {
+				// 			scrollToBottom()
+				// 		})
+				// 	}
+				// })
 			}
 		} else {
 			selectedChat.value = null
@@ -399,23 +491,18 @@ watch(
 )
 
 // 格式化时间
-const formatTime = (timestamp: string) => {
-	const date = new Date(timestamp)
-	const now = new Date()
-	const diff = now.getTime() - date.getTime()
+const formatTime = (timestamp?: string) => {
+	if (!timestamp) return ''
 
-	// 24小时内显示时间
-	if (diff < 24 * 60 * 60 * 1000) {
-		return date.toLocaleTimeString('zh-CN', {
-			hour: '2-digit',
-			minute: '2-digit',
+	try {
+		return formatDistanceToNow(new Date(timestamp), {
+			addSuffix: true,
+			locale: zhCN,
 		})
+	} catch (error) {
+		console.error('时间格式化错误:', error)
+		return timestamp
 	}
-	// 超过24小时显示日期
-	return date.toLocaleDateString('zh-CN', {
-		month: '2-digit',
-		day: '2-digit',
-	})
 }
 
 // 修改发送消息的方法
@@ -503,26 +590,6 @@ watch(
 	{ deep: true }
 )
 
-// 在进入页面时清除该页面聊天的未读数
-onMounted(() => {
-	if (selectedChat.value) {
-		chatStore.clearUnread(selectedChat.value.id)
-	}
-
-	if (wsService.socket) {
-		typingManager.value = new ChatTypingManager(wsService.socket)
-		typingManager.value.on('typingStatusChanged', ({ chatId, userId, typing }) => {
-			if (selectedChat.value?.id === chatId && userId !== userStore.userInfo?.id) {
-				if (typing && !typingUsers.value.includes(userId)) {
-					typingUsers.value.push(userId)
-				} else if (!typing) {
-					typingUsers.value = typingUsers.value.filter(id => id !== userId)
-				}
-			}
-		})
-	}
-})
-
 // 处理输入变化
 const handleInput = () => {
 	if (!selectedChat.value || !userStore.userInfo || !typingManager.value) return
@@ -542,8 +609,100 @@ onUnmounted(() => {
 	if (selectedChat.value) {
 		wsService.leaveChat(selectedChat.value.id)
 	}
+	clearTypingUsers()
 	typingManager.value?.destroy()
 })
+
+// 获取最后一条消息的预览
+const getLastMessagePreview = (message: any) => {
+	if (!message) return '暂无消息'
+
+	switch (message.type) {
+		case 'TEXT':
+			return message.content
+		case 'IMAGE':
+			return '[图片]'
+		case 'FILE':
+			return '[文件]'
+		case 'VOICE':
+			return '[语音]'
+		case 'VIDEO':
+			return '[视频]'
+		default:
+			return '新消息'
+	}
+}
+
+// 将Map转换为数组以便在模板中使用
+const chatsArray = computed(() => {
+	return Array.from(chats.value.values())
+})
+
+// 获取正在输入的用户名
+const getTypingUserName = () => {
+	if (!typingUsers?.length) return ''
+
+	// 获取第一个正在输入的用户
+	const userId = typingUsers[0]
+	console.log('获取打字用户名:', userId)
+
+	// 从参与者列表中查找用户
+	const participants = participantsCache.value.get(selectedChat.value?.id || 0) || []
+	const user = participants.find(p => p.id === userId)
+
+	return user?.username || '有人'
+}
+
+// 获取正在输入的用户头像
+const getTypingUserAvatar = () => {
+	if (!typingUsers?.length) return ''
+
+	// 获取第一个正在输入的用户
+	const userId = typingUsers[0]
+	console.log('获取打字用户头像:', userId)
+
+	// 从参与者列表中查找用户
+	const participants = participantsCache.value.get(selectedChat.value?.id || 0) || []
+	const user = participants.find(p => p.id === userId)
+
+	return user?.avatar || ''
+}
+
+// 监听打字状态变化
+watch(
+	() => typingManager.value,
+	newManager => {
+		if (newManager) {
+			newManager.on('typingStatusChanged', ({ chatId, userId, typing }) => {
+				console.log('打字状态变化:', { chatId, userId, typing, selectedChatId: selectedChat.value?.id })
+				if (selectedChat.value?.id === chatId && userId !== userStore.userInfo?.id) {
+					if (typing && !typingUsers.value.includes(userId)) {
+						console.log('添加打字用户:', userId)
+						typingUsers.value.push(userId)
+					} else if (!typing) {
+						console.log('移除打字用户:', userId)
+						typingUsers.value = typingUsers.value.filter(id => id !== userId)
+					}
+				}
+			})
+		}
+	},
+	{ immediate: true }
+)
+
+// 添加一个清除打字用户的方法
+const clearTypingUsers = () => {
+	typingUsers.value.splice(0, typingUsers.value.length)
+}
+
+// 在切换聊天时清除打字用户
+watch(
+	() => selectedChat.value,
+	() => {
+		console.log('聊天切换，清除打字用户')
+		clearTypingUsers()
+	}
+)
 </script>
 
 <style scoped>

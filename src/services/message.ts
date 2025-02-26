@@ -5,6 +5,7 @@ import { useMessageStore } from '@/stores/message'
 import { useUserStore } from '@/stores/user'
 import { useChatStore } from '@/stores/chat'
 import { MessageStatus } from '@/types/message'
+import request from '@/utils/request'
 
 class MessageService {
 	// 发送文本消息
@@ -18,6 +19,8 @@ class MessageService {
 			console.error('WebSocket is not connected')
 			return false
 		}
+
+		console.log('准备发送文本消息:', { chatId, receiverId, content, originalMessageId })
 
 		const messageStore = useMessageStore()
 		const userStore = useUserStore()
@@ -35,7 +38,8 @@ class MessageService {
 				content,
 				status: MessageStatus.SENDING,
 				senderId: userStore.userInfo!.id,
-				timestamp: new Date().toISOString(),
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
 				sender: {
 					id: userStore.userInfo!.id,
 					username: userStore.userInfo!.username,
@@ -54,14 +58,35 @@ class MessageService {
 			// 通过WebSocket发送消息
 			wsService.socket.emit('message', {
 				type: 'chat',
-				data: {
+				message: {
 					tempId,
 					chatId,
 					receiverId,
 					content,
-					type: 'text',
+					type: 'TEXT',
 				},
 			})
+
+			console.log('消息已发送到服务器:', {
+				type: 'chat',
+				message: {
+					tempId,
+					chatId,
+					receiverId,
+					content,
+					type: 'TEXT',
+				},
+			})
+
+			// 设置超时处理
+			setTimeout(() => {
+				// 检查消息是否仍处于发送中状态
+				const currentMessage = messageStore.findMessageById(tempId)
+				if (currentMessage && currentMessage.status === MessageStatus.SENDING) {
+					// 如果超时仍未收到确认，则标记为发送失败
+					messageStore.updateMessageStatus(tempId, MessageStatus.FAILED)
+				}
+			}, 10000) // 10秒超时
 
 			return true
 		} catch (error) {
@@ -117,19 +142,19 @@ class MessageService {
 			})
 			const { url } = await response.json()
 
-			const message: BaseMessageDto = {
-				chatId,
-				receiverId,
-				type: MessageType.FILE,
-				content: url,
-				metadata: {
-					fileName: file.name,
-					fileSize: file.size,
-					mimeType: file.type,
-				},
-			}
+			// const message: BaseMessageDto = {
+			// 	chatId,
+			// 	receiverId,
+			// 	type: MessageType.FILE,
+			// 	content: url,
+			// 	metadata: {
+			// fileName: file.name,
+			// fileSize: file.size,
+			// mimeType: file.type,
+			// },
+			// }
 
-			wsService.socket.emit('message', message)
+			// wsService.socket.emit('message', message)
 			return true
 		} catch (error) {
 			console.error('发送文件失败:', error)
@@ -162,6 +187,36 @@ class MessageService {
 		} catch (error) {
 			console.error('标记消息已读失败:', error)
 			return false
+		}
+	}
+
+	// 获取消息周围的消息
+	async getMessagesAround(chatId: number, messageId: number): Promise<any> {
+		try {
+			return await request.get(`/messages/before/${messageId}`, {
+				params: {
+					chatId,
+				},
+			})
+		} catch (error) {
+			console.error('获取消息周围的消息失败:', error)
+			throw error
+		}
+	}
+
+	// 获取最新的消息
+	async getLatestMessages(chatId: number, limit: number = 20): Promise<any> {
+		try {
+			const response = await request.get(`/messages/latest`, {
+				params: {
+					chatId,
+					limit,
+				},
+			})
+			return response.data
+		} catch (error) {
+			console.error('获取最新消息失败:', error)
+			throw error
 		}
 	}
 }

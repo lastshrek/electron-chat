@@ -18,7 +18,6 @@ import { useMessageStore } from '@/stores/message'
 import { MessageStatus } from '@/types/message'
 
 const WS_URL = import.meta.env.VITE_WS_URL
-
 export class WebSocketService {
 	public socket: Socket | null = null
 	private initialized = false
@@ -43,7 +42,7 @@ export class WebSocketService {
 		}
 
 		try {
-			this.socket = io(WS_URL, {
+			this.socket = io(`${WS_URL}`, {
 				auth: {
 					token: `Bearer ${token}`,
 				},
@@ -62,9 +61,16 @@ export class WebSocketService {
 
 	private setupEventListeners() {
 		if (!this.socket) return
+		const userStore = useUserStore()
+
+		// 添加通用事件监听器，捕获所有事件
+		this.socket.onAny((event, ...args) => {
+			console.log(`收到事件 ${event}:`, args)
+		})
 
 		// 连接相关事件
 		this.socket.on(WebSocketEvent.CONNECT, () => {
+			console.log('WebSocket 连接成功，socket ID:', this.socket?.id)
 			toastService.success('连接成功', '已建立实时通信连接')
 		})
 
@@ -249,31 +255,158 @@ export class WebSocketService {
 		this.socket.on(WebSocketEvent.TYPING, (data: TypingEventData) => {
 			console.log('收到用户正在输入事件:', data)
 			// 直接广播给其他组件，不要再发回服务器
-			eventBus.emit('userTyping', data.data)
+			eventBus.emit('userTyping', data)
 		})
 
 		this.socket.on(WebSocketEvent.STOP_TYPING, (data: TypingEventData) => {
 			console.log('收到用户停止输入事件:', data)
 			// 直接广播给其他组件，不要再发回服务器
-			eventBus.emit('userStopTyping', data.data)
+			eventBus.emit('userStopTyping', data)
 		})
 
 		// 其他用户输入事件
 		this.socket.on(WebSocketEvent.USER_TYPING, (data: TypingEventData) => {
-			console.log('收到其他用户正在输入事件:', data)
+			if (!data) {
+				console.error('收到无效的输入事件数据:', data)
+				return
+			}
+			if (data.user.id === userStore.userInfo?.id) {
+				return
+			}
+			console.log('收到其他用户输入事件:', data)
+			console.log(data.user.id, userStore.userInfo?.id)
 			// 直接广播给其他组件，不要再发回服务器
-			eventBus.emit('userTyping', data.data)
+			eventBus.emit('userTyping', data)
 		})
 
 		this.socket.on(WebSocketEvent.USER_STOP_TYPING, (data: TypingEventData) => {
 			console.log('收到其他用户停止输入事件:', data)
+			if (!data) {
+				console.error('收到无效的停止输入事件数据:', data)
+				return
+			}
+			console.log(data.user.id, userStore.userInfo?.id)
+			if (data.user.id === userStore.userInfo?.id) {
+				return
+			}
 			// 直接广播给其他组件，不要再发回服务器
-			eventBus.emit('userStopTyping', data.data)
+			eventBus.emit('userStopTyping', data)
 		})
 
 		// 监听加入聊天室成功
 		this.socket.on(WebSocketEvent.JOINED_CHAT, response => {
 			console.log('成功加入聊天室:', response)
+		})
+
+		// 监听消息确认事件
+		this.socket.on('messageConfirm', (data: any) => {
+			console.log('收到消息确认:', data)
+
+			const messageStore = useMessageStore()
+			const chatStore = useChatStore()
+
+			// 更新消息状态
+			messageStore.updateMessageStatus(data.data.tempId, MessageStatus.SENT)
+
+			// 更新消息ID和其他信息
+			messageStore.updateMessage(data.data.tempId, {
+				id: data.data.message.id,
+				status: data.data.message.status,
+				createdAt: data.data.message.createdAt,
+				updatedAt: data.data.message.updatedAt,
+			})
+
+			// 更新聊天列表的最后一条消息
+			chatStore.updateLastMessage(data.data.message.chatId, {
+				id: data.data.message.id,
+				content: data.data.message.content,
+				type: data.data.message.type,
+				status: data.data.message.status,
+				createdAt: data.data.message.createdAt,
+				sender: data.data.message.sender,
+				receiver: data.data.message.receiver,
+			})
+		})
+
+		// 监听消息事件 - 接收其他用户发送的消息
+		this.socket.on('message', (response: any) => {
+			console.log('收到原始消息事件数据:', JSON.stringify(response))
+			console.log('收到消息事件:', response)
+
+			const messageStore = useMessageStore()
+			const chatStore = useChatStore()
+			const userStore = useUserStore()
+
+			// 检查响应结构
+			if (!response || !response.data) {
+				console.error('消息格式不正确:', response)
+				return
+			}
+
+			// 检查消息是否来自自己
+			if (response.data.sender.id === userStore.userInfo?.id) {
+				console.log('跳过自己发送的消息')
+				return
+			}
+
+			// 保存消息到 store
+			messageStore.addMessage({
+				id: response.data.id,
+				content: response.data.content,
+				type: response.data.type,
+				status: MessageStatus.DELIVERED, // 收到的消息默认为已送达
+				senderId: response.data.sender.id,
+				receiverId: response.data.receiver.id,
+				chatId: response.data.chatId,
+				createdAt: response.data.createdAt,
+				updatedAt: response.data.updatedAt,
+				metadata: response.data.metadata || undefined,
+				sender: response.data.sender,
+				receiver: response.data.receiver,
+			})
+
+			// 更新最后一条消息并移动聊天到顶部
+			const chat = chatStore.chats.get(response.data.chatId)
+			if (chat) {
+				// 先从Map中删除这个聊天
+				chatStore.chats.delete(response.data.chatId)
+
+				// 更新最后一条消息
+				chat.lastMessage = {
+					id: response.data.id,
+					content: response.data.content,
+					type: response.data.type,
+					status: response.data.status,
+					timestamp: response.data.createdAt,
+					sender: response.data.sender,
+					receiver: response.data.receiver,
+				}
+
+				// 重新添加到Map的开头
+				const newChats = new Map<number, ChatInfo>()
+				newChats.set(response.data.chatId, chat)
+				chatStore.chats.forEach((value, key) => {
+					if (key !== response.data.chatId) {
+						newChats.set(key, value)
+					}
+				})
+				chatStore.chats = newChats
+
+				// 检查是否在当前聊天页面
+				const currentRoute = router.currentRoute.value
+				const isInChatPage = currentRoute.name === 'chat'
+				const currentChatId = Number(currentRoute.params.chatId)
+
+				// 只有不在当前聊天页面时才增加未读数
+				if (!isInChatPage || currentChatId !== response.data.chatId) {
+					console.log('不在当前聊天页面，增加未读数')
+					chatStore.incrementUnread(response.data.chatId)
+				} else {
+					console.log('在当前聊天页面，不增加未读数')
+					// 如果在当前聊天页面，标记消息为已读
+					messageStore.markMessagesAsRead(response.data.chatId, [response.data.id])
+				}
+			}
 		})
 	}
 
@@ -351,8 +484,13 @@ export class WebSocketService {
 			console.error('Socket.IO is not connected')
 			return
 		}
-		console.log('加入聊天室:', chatId)
+		console.log('尝试加入聊天室:', chatId)
 		this.socket.emit(WebSocketEvent.JOIN_CHAT, chatId)
+
+		// 添加确认回调
+		this.socket.once(WebSocketEvent.JOINED_CHAT, response => {
+			console.log('成功加入聊天室，确认回调:', response)
+		})
 	}
 
 	public leaveChat(chatId: number) {

@@ -2,88 +2,12 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:09:17
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-26 13:19:41
+ * @LastEditTime : 2025-02-26 15:37:42
  * @FilePath     : /src/views/Login/Login.vue
  * @Description  : Login page
  * Copyright 2025 lastshrek, All Rights Reserved.
  * 2025-02-19 19:09:17
 -->
-<script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useUserStore } from '@/stores/user'
-import { encrypt } from '@/utils/crypto'
-import { Eye, EyeOff } from 'lucide-vue-next'
-import { toastService } from '@/services/toast'
-
-const router = useRouter()
-const userStore = useUserStore()
-
-const username = ref('')
-const password = ref('')
-const remember = ref(false)
-const showPassword = ref(false)
-const loading = ref(false)
-
-console.log('Login component mounted')
-
-const handleSubmit = async (e: Event) => {
-	console.log('Form submit event:', e)
-	e.preventDefault()
-
-	try {
-		if (!username.value || !password.value) {
-			console.log('Validation failed:', { username: username.value })
-			toastService.error('错误', '请输入用户名和密码')
-			return
-		}
-
-		await handleLogin()
-	} catch (error) {
-		console.error('Submit error:', error)
-	}
-}
-
-const handleLogin = async () => {
-	if (!username.value || !password.value) {
-		toastService.error('错误', '用户名和密码不能为空')
-		return
-	}
-
-	loading.value = true
-	console.log('正在尝试登录...', { username: username.value })
-
-	try {
-		// 加密密码
-		const encryptedPassword = encrypt(password.value)
-		console.log('密码已加密')
-
-		const success = await userStore.login({
-			username: username.value,
-			password: encryptedPassword,
-		})
-
-		if (success) {
-			console.log('登录成功，准备跳转')
-			toastService.success('登录成功', '欢迎回来！')
-			router.push('/')
-		} else {
-			console.error('登录失败')
-			toastService.error('登录失败', '用户名或密码错误')
-		}
-	} catch (error) {
-		console.error('登录出错:', error)
-		toastService.error('登录失败', '发生未知错误')
-	} finally {
-		loading.value = false
-	}
-}
-
-const togglePasswordVisibility = () => {
-	showPassword.value = !showPassword.value
-}
-</script>
-
 <template>
 	<div class="relative min-h-screen flex items-center justify-center overflow-hidden">
 		<!-- 背景装饰 -->
@@ -203,6 +127,80 @@ const togglePasswordVisibility = () => {
 		</div>
 	</div>
 </template>
+<script setup lang="ts">
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
+import { encrypt } from '@/utils/crypto'
+import { Eye, EyeOff } from 'lucide-vue-next'
+import { toastService } from '@/services/toast'
+
+const router = useRouter()
+const userStore = useUserStore()
+
+const username = ref('')
+const password = ref('')
+const remember = ref(false)
+const showPassword = ref(false)
+const loading = ref(false)
+
+console.log('Login component mounted')
+
+const handleSubmit = async (e: Event) => {
+	console.log('Form submit event:', e)
+	e.preventDefault()
+
+	try {
+		if (!username.value || !password.value) {
+			console.log('Validation failed:', { username: username.value })
+			toastService.error('错误', '请输入用户名和密码')
+			return
+		}
+
+		await handleLogin()
+	} catch (error) {
+		console.error('Submit error:', error)
+	}
+}
+
+const handleLogin = async () => {
+	if (!username.value || !password.value) {
+		toastService.error('错误', '用户名和密码不能为空')
+		return
+	}
+
+	loading.value = true
+	console.log('正在尝试登录...', { username: username.value })
+
+	try {
+		// 加密密码
+		const encryptedPassword = encrypt(password.value)
+		console.log('密码已加密')
+
+		const success = await userStore.login({
+			username: username.value,
+			password: encryptedPassword,
+		})
+
+		if (success) {
+			console.log('登录成功，准备跳转')
+			router.push('/')
+		} else {
+			console.error('登录失败')
+			toastService.error('登录失败', '用户名或密码错误')
+		}
+	} catch (error) {
+		console.error('登录出错:', error)
+		toastService.error('登录失败', '发生未知错误')
+	} finally {
+		loading.value = false
+	}
+}
+
+const togglePasswordVisibility = () => {
+	showPassword.value = !showPassword.value
+}
+</script>
 
 <style scoped>
 .bg-grid-slate-200\/20 {
