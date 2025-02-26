@@ -17,13 +17,10 @@
 			</div>
 
 			<!-- 会话列表 -->
-			<div class="flex-1 overflow-y-auto min-h-0">
-				<div class="p-2 space-y-1">
+			<div class="flex-1 min-h-0" :class="{ 'overflow-y-auto': chats.size > 0, 'overflow-hidden': chats.size === 0 }">
+				<div class="p-2 space-y-1 h-full">
 					<!-- 无会话时显示提示 -->
-					<div
-						v-if="chats.size === 0"
-						class="flex flex-col items-center justify-center h-[calc(100vh-3.5rem)] text-gray-400"
-					>
+					<div v-if="chats.size === 0" class="flex flex-col items-center justify-center h-full text-gray-400">
 						<MessageSquare class="w-12 h-12 mb-4" />
 						<p class="text-sm">暂无会话</p>
 						<p class="text-xs mt-2">去联系人页面添加好友开始聊天吧</p>

@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
 import type { Message } from '@/types/message'
 import { MessageStatus } from '@/types/message'
 import { messageService } from '@/services/message'
@@ -24,11 +23,6 @@ export interface Message {
 		username: string
 		avatar: string
 	}
-}
-
-interface MessageGroup {
-	date: string
-	messages: Message[]
 }
 
 export const useMessageStore = defineStore('message', {
