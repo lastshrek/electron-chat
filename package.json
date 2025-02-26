@@ -42,8 +42,7 @@
 		"build:test": "vue-tsc && vite build --mode test",
 		"preview": "vite preview",
 		"deploy": "node ./node_modules/gh_deploy/index.mjs",
-		"postinstall": "electron-builder install-app-deps",
-		"rebuild": "electron-rebuild -f -w better-sqlite3"
+		"postinstall": "electron-builder install-app-deps"
 	},
 	"dependencies": {
 		"@tiptap/extension-collaboration": "^2.11.5",
@@ -56,7 +55,6 @@
 		"@tiptap/starter-kit": "^2.11.5",
 		"@tiptap/vue-3": "^2.11.5",
 		"axios": "^1.7.9",
-		"better-sqlite3": "^11.8.1",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
 		"lucide-vue-next": "^0.475.0",

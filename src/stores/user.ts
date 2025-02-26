@@ -16,7 +16,6 @@ import {useChatStore} from "./chat";
 import {useMessageStore} from "./message";
 import {wsService} from "@/services/ws";
 import {useRouter} from "vue-router";
-import type {DB} from "@/types/electron";
 
 const TOKEN_KEY = "token";
 const USER_INFO_KEY = "user_info";
@@ -51,41 +50,11 @@ export const useUserStore = defineStore("user", () => {
 		}
 	};
 
-	const syncFriends = async () => {
-		try {
-			const response = await authApi.getFriends();
-			if (!window?.electron?.db) {
-				console.error("electron.db 未定义!");
-				return;
-			}
-
-			if (response) {
-				if (!userInfo.value?.id) {
-					console.error("当前用户ID不存在!");
-					return;
-				}
-
-				const db = window.electron?.db as DB;
-				if (!db) {
-					console.error("electron.db 未定义!");
-					return;
-				}
-
-				await db.syncFriends(response, userInfo.value.id);
-			} else {
-				console.error("好友列表数据格式错误:", response);
-			}
-		} catch (error) {
-			console.error("同步好友列表失败:", error);
-		}
-	};
-
 	const initAuth = () => {
 		// 从 localStorage 获取 token
 		const savedToken = localStorage.getItem(TOKEN_KEY);
 		if (savedToken) {
 			setToken(savedToken);
-			syncFriends();
 		}
 
 		const savedUserInfo = localStorage.getItem(USER_INFO_KEY);
@@ -151,23 +120,20 @@ export const useUserStore = defineStore("user", () => {
 		}
 	};
 
-	const restoreFromDB = async () => {
-		try {
-			const currentUser = await window.electron.db.getCurrentUser();
-			if (currentUser) {
-				// 从本地存储获取 token
-				const savedToken = localStorage.getItem(TOKEN_KEY);
-				if (savedToken) {
-					setToken(savedToken);
-				}
-				setUserInfo(currentUser);
+	const restoreFromLocalStorage = () => {
+		const savedToken = localStorage.getItem(TOKEN_KEY);
+		const savedUserInfo = localStorage.getItem(USER_INFO_KEY);
+
+		if (savedToken && savedUserInfo) {
+			try {
+				setToken(savedToken);
+				setUserInfo(JSON.parse(savedUserInfo));
 				return true;
+			} catch (error) {
+				console.error("从本地存储恢复用户状态失败:", error);
 			}
-			return false;
-		} catch (error) {
-			console.error("从数据库恢复用户状态失败:", error);
-			return false;
 		}
+		return false;
 	};
 
 	return {
@@ -180,6 +146,6 @@ export const useUserStore = defineStore("user", () => {
 		logout,
 		updateUserInfo,
 		login,
-		restoreFromDB,
+		restoreFromLocalStorage,
 	};
 });

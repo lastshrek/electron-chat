@@ -15,7 +15,6 @@ import {eventBus} from "@/utils/eventBus";
 import {useRoute} from 'vue-router'
 import MainLayout from '@/components/layout/MainLayout.vue'
 import EmptyLayout from '@/components/layout/EmptyLayout.vue'
-// import {electronAPI} from "@/electron";
 
 console.log("[App.vue]", `Hello world from Electron!`);
 
@@ -35,10 +34,8 @@ onMounted(async () => {
 		// 先初始化认证状态
 		userStore.initAuth();
 		
-		// 然后从数据库恢复用户状态
-		const restored = await userStore.restoreFromDB();
-		
-		if (restored && userStore.isAuthenticated) {
+		// 从本地存储恢复用户状态，而不是数据库
+		if (userStore.isAuthenticated) {
 			// 初始化 socket 连接
 			chatStore.initSocket();
 			// 初始化 WebSocket 服务
@@ -58,7 +55,7 @@ onUnmounted(() => {
 	}
 })
 
-// 在好友同步完成后初始化聊天
+// 在好友数据加载完成后初始化聊天
 const initializeChat = async () => {
 	try {
 		const chatStore = useChatStore();
@@ -67,21 +64,5 @@ const initializeChat = async () => {
 		console.error("初始化聊天失败:", error);
 	}
 };
-
-// 监听好友同步完成事件
-onMounted(() => {
-	if (window.electron?.ipcRenderer) {
-		window.electron.ipcRenderer.on('friendsSynced', async () => {
-			await initializeChat();
-		});
-	}
-});
-
-// 清理事件监听
-onUnmounted(() => {
-	if (window.electron?.ipcRenderer) {
-		window.electron.ipcRenderer.off('friendsSynced');
-	}
-});
 </script>
 

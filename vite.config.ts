@@ -45,9 +45,6 @@ export default defineConfig(({command, mode}) => {
 		build: {
 			outDir: isWeb ? "dist" : "build/app",
 			emptyOutDir: true,
-			rollupOptions: {
-				external: ["better-sqlite3"], // 将 better-sqlite3 标记为外部模块
-			},
 			assetsDir: "assets",
 			rollupOptions: {
 				input: {
@@ -57,9 +54,6 @@ export default defineConfig(({command, mode}) => {
 		},
 		plugins: [vue()],
 		clearScreen: true,
-		optimizeDeps: {
-			exclude: ["better-sqlite3"], // 排除 better-sqlite3 的依赖优化
-		},
 		server: {
 			host: "0.0.0.0", // 监听所有网络接口
 			port: 5173, // 默认端口
@@ -97,7 +91,7 @@ export default defineConfig(({command, mode}) => {
 								minify: isBuild,
 								outDir: "build/electron",
 								rollupOptions: {
-									external: ["better-sqlite3", "electron"],
+									external: ["electron"], // 移除 better-sqlite3
 								},
 							},
 						},

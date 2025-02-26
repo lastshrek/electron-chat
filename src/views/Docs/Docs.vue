@@ -174,7 +174,6 @@ import { ref, reactive, onMounted } from 'vue'
 import { FileText, Table, Users } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { useToast } from '@/components/ui/toast'
-import MainLayout from '@/components/layout/MainLayout.vue'
 import { documentApi, type Document } from '@/api/document'
 
 const router = useRouter()
@@ -189,7 +188,7 @@ const loadDocuments = async () => {
     const response = await documentApi.getDocuments()
     console.log(TAG, '加载文档列表:', response)
     if (response) {
-      documents.value = response
+      documents.value = response as unknown as Document[]
     }
   } catch (error) {
     console.error('加载文档列表失败:', error)

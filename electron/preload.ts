@@ -7,54 +7,11 @@
  */
 
 import {contextBridge, ipcRenderer} from "electron";
-import type {Friend} from "../src/types/api";
+// 移除数据库相关类型导入
+// import type {Friend} from "../src/types/api";
 
-// 定义数据库操作类型
-interface DBOperations {
-	createLoginUser: (params: {user_id: number; username: string; avatar: string}) => Promise<any>;
-	getCurrentUser: () => Promise<any>;
-	syncFriends: (friends: Friend[], userId: number) => Promise<boolean>;
-	getFriends: (userId: number) => Promise<
-		Array<{
-			id: number;
-			createdAt: string;
-			userId: number;
-			friendId: number;
-			friendUsername: string;
-			friendAvatar: string;
-			chatId: number;
-		}>
-	>;
-	getChats: () => Promise<
-		Array<{
-			chat_id: number;
-			type: "DIRECT" | "GROUP";
-			name: string | null;
-			participant_ids: string;
-			participant_names: string;
-			participant_avatars: string;
-		}>
-	>;
-	upsertChat: (chat: {
-		chat_id: number;
-		type: "DIRECT" | "GROUP";
-		name: string | null;
-		participants: Array<{
-			user_id: number;
-			username: string;
-			avatar: string;
-		}>;
-	}) => Promise<boolean>;
-	getChatParticipants: (chatId: number) => Promise<
-		Array<{
-			chat_id: number;
-			user_id: number;
-			role: string;
-			username: string;
-			avatar: string;
-		}>
-	>;
-}
+// 移除数据库操作类型定义
+// interface DBOperations { ... }
 
 // 定义 API 类型
 export interface ElectronAPI {
@@ -62,7 +19,7 @@ export interface ElectronAPI {
 	send: (channel: string, data: any) => void;
 	on: (channel: string, callback: Function) => void;
 	removeAllListeners: (channel: string) => void;
-	db: DBOperations;
+	// 移除 db 属性
 	ipcRenderer: {
 		invoke: (channel: string, ...args: any[]) => void;
 		on: (channel: string, callback: Function) => void;
@@ -159,27 +116,6 @@ function useLoading() {
 	};
 }
 
-// ----------------------------------------------------------------------
-
-// const { appendLoading, removeLoading } = useLoading()
-// domReady().then(appendLoading)
-
-// /**  ---------- Remove Loading ----------- */
-// let appLoaded = false;
-// let timeout = false;
-
-// setTimeout(() => {
-//     timeout = true;
-//     appLoaded && removeLoading();
-// }, 4999);
-
-// window.onmessage = (event) => {
-//     if (event.data.payload === 'removeLoading') {
-//         appLoaded = true;
-//         timeout && removeLoading();
-//     }
-// };
-
 // API 实现
 const api: ElectronAPI = {
 	platform: process.platform,
@@ -191,16 +127,6 @@ const api: ElectronAPI = {
 	},
 	removeAllListeners: (channel: string) => {
 		ipcRenderer.removeAllListeners(channel);
-	},
-	db: {
-		createLoginUser: (params) => ipcRenderer.invoke("db:createLoginUser", params),
-		getCurrentUser: () => ipcRenderer.invoke("db:getCurrentUser"),
-		syncFriends: (friends, userId) => ipcRenderer.invoke("db:syncFriends", friends, userId),
-		getFriends: (userId) => ipcRenderer.invoke("db:getFriends", userId),
-		getChats: () => ipcRenderer.invoke("db:getChats"),
-		upsertChat: (chat: any) => ipcRenderer.invoke("db:upsertChat", chat),
-		getChatParticipants: (chatId: number) =>
-			ipcRenderer.invoke("db:getChatParticipants", chatId),
 	},
 	ipcRenderer: {
 		invoke: (channel: string, ...args: any[]) => ipcRenderer.invoke(channel, ...args),

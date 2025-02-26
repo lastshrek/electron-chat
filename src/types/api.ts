@@ -11,31 +11,33 @@
 // 通用响应类型
 export interface ApiResponse<T = any> {
 	code: number;
-	data: T;
 	message: string;
+	data: T;
 }
 
 // 登录请求参数
 export interface LoginParams {
 	username: string;
 	password: string;
+	remember?: boolean;
 }
 
 // 登录响应数据
 export interface LoginResponse {
-	user: UserInfo;
 	token: string;
-	pendingRequests: any[]; // 可以根据需要定义具体类型
+	user: UserInfo;
 }
 
 // 用户信息
 export interface UserInfo {
 	id: number;
-	user_id: number;
 	username: string;
-	avatar: string;
-	createdAt: string;
-	updatedAt: string;
+	email: string;
+	avatar?: string;
+	role?: string;
+	department?: string;
+	position?: string;
+	// 其他用户信息字段
 }
 
 // 注册请求参数
