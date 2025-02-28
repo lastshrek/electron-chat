@@ -11,11 +11,6 @@
 
 ## 支持与赞助
 
-[![pixme url](https://img.shields.io/badge/donate%20on-pixme-1C1E26?style=for-the-badge&labelColor=1C1E26&color=28f4f4)](https://www.pixme.bio/heliomarpm)
-[![paypal url](https://img.shields.io/badge/paypal-1C1E26?style=for-the-badge&labelColor=1C1E26&color=0475fe)](https://bit.ly/paypal-sponsor-heliomarpm)
-[![kofi url](https://img.shields.io/badge/kofi-1C1E26?style=for-the-badge&labelColor=1C1E26&color=ff5f5f)](https://ko-fi.com/heliomarpm)
-[![liberapay url](https://img.shields.io/badge/liberapay-1C1E26?style=for-the-badge&labelColor=1C1E26&color=f6c915)](https://liberapay.com/heliomarpm)
-[![releases url](https://img.shields.io/github/v/release/heliomarpm/electron-vuevite-quick-start?style=for-the-badge&labelColor=1C1E26&color=2ea043)](https://github.com/heliomarpm/electron-vuevite-quick-start/releases)
 [![license url](https://img.shields.io/badge/license%20-MIT-1C1E26?style=for-the-badge&labelColor=1C1E26&color=61ffca)](https://github.com/heliomarpm/electron-vuevite-quick-start/blob/main/LICENSE)
 
 ## 项目简介
@@ -66,10 +61,4 @@ npm run build
 npm run deploy
 ```
 
-## 贡献指南
 
-请阅读 [贡献指南](https://github.com/heliomarpm/electron-vuevite-quick-start/blob/master/docs/CONTRIBUTING.md) 了解如何为项目做出贡献。
-
-## 许可证
-
-[MIT © Heliomar P. Marques](https://github.com/heliomarpm/electron-vuevite-quick-start/blob/main/LICENSE)
