@@ -34,56 +34,85 @@
 			<!-- 会话列表 -->
 			<div class="flex-1 overflow-y-auto select-none">
 				<div v-if="filteredChats.length > 0">
-					<div
-						v-for="chat in filteredChats"
-						:key="chat.id"
-						class="flex items-center p-4 cursor-pointer hover:bg-slate-100 transition-colors"
-						:class="{ 'bg-blue-50': selectedChat?.id === chat.id }"
-						@click="selectChat(chat)"
-					>
-						<!-- 头像 -->
-						<div class="relative">
-							<img
-								:src="chat.otherUser?.avatar || 'https://api.dicebear.com/7.x/initials/svg?seed=Group'"
-								:alt="chat.otherUser?.username || chat.name || '聊天'"
-								class="w-12 h-12 rounded-full object-cover"
-							/>
-							<!-- 未读消息提示 -->
+					<ContextMenu v-for="chat in filteredChats" :key="chat.id">
+						<ContextMenuTrigger>
 							<div
-								v-if="chat.unreadCount > 0"
-								class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
+								class="flex items-center p-4 cursor-pointer hover:bg-slate-100 transition-colors"
+								:class="{ 'bg-blue-50': selectedChat?.id === chat.id }"
+								@click="selectChat(chat)"
 							>
-								{{ chat.unreadCount > 99 ? '99+' : chat.unreadCount }}
-							</div>
-						</div>
+								<!-- 头像 -->
+								<div class="relative">
+									<img
+										:src="chat.otherUser?.avatar || 'https://api.dicebear.com/7.x/initials/svg?seed=Group'"
+										:alt="chat.otherUser?.username || chat.name || '聊天'"
+										class="w-12 h-12 rounded-full object-cover"
+									/>
+									<!-- 未读消息提示 -->
+									<div
+										v-if="chat.unreadCount > 0"
+										class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
+									>
+										{{ chat.unreadCount > 99 ? '99+' : chat.unreadCount }}
+									</div>
+								</div>
 
-						<!-- 聊天信息 -->
-						<div class="ml-3 flex-1 min-w-0">
-							<div class="flex justify-between items-center">
-								<h3 class="font-medium text-sm truncate">
-									{{ chat.otherUser?.username || chat.name || '未命名聊天' }}
-								</h3>
-								<span class="text-xs text-gray-500">
-									{{ formatTime(chat.lastMessage?.createdAt) }}
-								</span>
-							</div>
-							<div class="flex justify-between items-center mt-1">
-								<p class="text-sm text-gray-500 truncate">
-									{{ getLastMessagePreview(chat.lastMessage) }}
-								</p>
-								<!-- 消息状态指示器 -->
-								<div
-									v-if="chat.lastMessage && chat.lastMessage.senderId === userStore.userInfo?.id"
-									class="ml-2 flex-shrink-0"
-								>
-									<Check v-if="chat.lastMessage.status === 'SENT'" class="w-4 h-4 text-gray-400" />
-									<CheckCheck v-else-if="chat.lastMessage.status === 'DELIVERED'" class="w-4 h-4 text-gray-400" />
-									<CheckCheck v-else-if="chat.lastMessage.status === 'READ'" class="w-4 h-4 text-blue-500" />
-									<AlertCircle v-else-if="chat.lastMessage.status === 'FAILED'" class="w-4 h-4 text-red-500" />
+								<!-- 聊天信息 -->
+								<div class="ml-3 flex-1 min-w-0">
+									<div class="flex justify-between items-center">
+										<h3 class="font-medium text-sm truncate">
+											{{ chat.otherUser?.username || chat.name || '未命名聊天' }}
+										</h3>
+										<span class="text-xs text-gray-500">
+											{{ formatTime(chat.lastMessage?.createdAt) }}
+										</span>
+									</div>
+									<div class="flex justify-between items-center mt-1">
+										<p class="text-sm text-gray-500 truncate">
+											{{ getLastMessagePreview(chat.lastMessage) }}
+										</p>
+										<!-- 消息状态指示器 -->
+										<div
+											v-if="chat.lastMessage && chat.lastMessage.senderId === userStore.userInfo?.id"
+											class="ml-2 flex-shrink-0"
+										>
+											<Check v-if="chat.lastMessage.status === 'SENT'" class="w-4 h-4 text-gray-400" />
+											<CheckCheck v-else-if="chat.lastMessage.status === 'DELIVERED'" class="w-4 h-4 text-gray-400" />
+											<CheckCheck v-else-if="chat.lastMessage.status === 'READ'" class="w-4 h-4 text-blue-500" />
+											<AlertCircle v-else-if="chat.lastMessage.status === 'FAILED'" class="w-4 h-4 text-red-500" />
+										</div>
+									</div>
 								</div>
 							</div>
-						</div>
-					</div>
+						</ContextMenuTrigger>
+
+						<ContextMenuContent>
+							<ContextMenuItem @click="handleMarkAsRead(chat.id)">
+								<Reply class="mr-2 h-4 w-4" />
+								<span>标记为已读</span>
+							</ContextMenuItem>
+
+							<ContextMenuItem @click="handlePinChat(chat.id)">
+								<Forward class="mr-2 h-4 w-4" />
+								<span>置顶聊天</span>
+							</ContextMenuItem>
+
+							<ContextMenuItem @click="handleMultiSelect">
+								<CheckSquare class="mr-2 h-4 w-4" />
+								<span>多选</span>
+							</ContextMenuItem>
+
+							<ContextMenuSeparator />
+
+							<ContextMenuItem
+								@click="handleDeleteChat(chat.id)"
+								class="text-red-600 focus:text-red-600 focus:bg-red-50"
+							>
+								<Trash2 class="mr-2 h-4 w-4" />
+								<span>删除会话</span>
+							</ContextMenuItem>
+						</ContextMenuContent>
+					</ContextMenu>
 				</div>
 				<div v-else class="flex flex-col items-center justify-center h-full p-6 text-center select-none">
 					<MessageSquare class="w-12 h-12 text-gray-300 mb-4" />
@@ -126,69 +155,115 @@
 						/>
 
 						<!-- 消息内容区域 -->
-						<div
-							class="group relative max-w-[70%]"
-							:class="message.senderId === userStore.userInfo?.id ? 'items-end' : 'items-start'"
-						>
-							<!-- 发送者名称 -->
-							<div v-if="message.senderId !== userStore.userInfo?.id" class="text-xs text-gray-500 mb-1 px-1">
-								{{ message.sender?.username }}
-							</div>
-
-							<!-- 消息气泡 -->
-							<div
-								class="rounded-2xl px-4 py-2 shadow-sm"
-								:class="[
-									message.senderId === userStore.userInfo?.id
-										? 'bg-blue-500 text-white ml-auto'
-										: 'bg-white text-gray-900',
-								]"
-							>
-								<!-- 文本消息 -->
-								<p v-if="message.type === 'TEXT'" class="whitespace-pre-wrap break-words text-sm">
-									{{ message.content }}
-								</p>
-
-								<!-- 图片消息 -->
-								<img
-									v-else-if="message.type === 'IMAGE'"
-									:src="message.content"
-									class="max-w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-									@click="previewImage(message.content)"
-								/>
-
-								<!-- 文件消息 -->
-								<div
-									v-else-if="message.type === 'FILE'"
-									class="flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity"
-									@click="downloadFile(message.content)"
-								>
-									<Paperclip class="w-4 h-4" />
-									<span class="text-sm">{{ message.metadata?.fileName }}</span>
-								</div>
-							</div>
-
-							<!-- 消息状态 -->
-							<div
-								class="flex items-center gap-1 mt-1 px-1"
-								:class="message.senderId === userStore.userInfo?.id ? 'justify-end' : 'justify-start'"
-							>
-								<span class="text-xs text-gray-400">
-									{{ formatTime(message.createdAt) }}
-								</span>
-								<template v-if="message.senderId === userStore.userInfo?.id">
-									<Check v-if="message.status === 'SENT'" class="w-3 h-3 text-gray-400" />
-									<CheckCheck v-else-if="message.status === 'DELIVERED'" class="w-3 h-3 text-gray-400" />
-									<CheckCheck v-else-if="message.status === 'READ'" class="w-3 h-3 text-blue-500" />
-									<button
-										v-else-if="message.status === 'FAILED'"
-										class="text-red-500 hover:text-red-600 transition-colors"
-										@click="handleResend(message.id)"
+						<div class="flex-1 min-w-0">
+							<ContextMenu>
+								<ContextMenuTrigger>
+									<div
+										class="group relative inline-block max-w-[70%]"
+										:class="message.senderId === userStore.userInfo?.id ? 'float-right' : 'float-left'"
 									>
-										<RefreshCw class="w-3 h-3" />
-									</button>
-								</template>
-							</div>
+										<!-- 发送者名称 -->
+										<div v-if="message.senderId !== userStore.userInfo?.id" class="text-xs text-gray-500 mb-1 px-1">
+											{{ message.sender?.username }}
+										</div>
+
+										<!-- 消息气泡 -->
+										<div
+											class="rounded-2xl px-4 py-2 shadow-sm"
+											:class="[
+												message.senderId === userStore.userInfo?.id
+													? 'bg-blue-500 text-white'
+													: 'bg-white text-gray-900',
+											]"
+										>
+											<!-- 文本消息 -->
+											<p v-if="message.type === 'TEXT'" class="whitespace-pre-wrap break-words text-sm">
+												{{ message.content }}
+											</p>
+
+											<!-- 图片消息 -->
+											<img
+												v-else-if="message.type === 'IMAGE'"
+												:src="message.content"
+												class="max-w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+												@click="previewImage(message.content)"
+											/>
+
+											<!-- 文件消息 -->
+											<div
+												v-else-if="message.type === 'FILE'"
+												class="flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity"
+												@click="downloadFile(message.content)"
+											>
+												<Paperclip class="w-4 h-4" />
+												<span class="text-sm">{{ message.metadata?.fileName }}</span>
+											</div>
+										</div>
+
+										<!-- 消息状态 -->
+										<div
+											class="flex items-center gap-1 mt-1 px-1"
+											:class="message.senderId === userStore.userInfo?.id ? 'justify-end' : 'justify-start'"
+										>
+											<span class="text-xs text-gray-400">
+												{{ formatTime(message.createdAt) }}
+											</span>
+											<template v-if="message.senderId === userStore.userInfo?.id">
+												<Check v-if="message.status === 'SENT'" class="w-3 h-3 text-gray-400" />
+												<CheckCheck v-else-if="message.status === 'DELIVERED'" class="w-3 h-3 text-gray-400" />
+												<CheckCheck v-else-if="message.status === 'READ'" class="w-3 h-3 text-blue-500" />
+												<button
+													v-else-if="message.status === 'FAILED'"
+													class="text-red-500 hover:text-red-600 transition-colors"
+													@click="handleResend(message.id)"
+												>
+													<RefreshCw class="w-3 h-3" />
+												</button>
+											</template>
+										</div>
+									</div>
+								</ContextMenuTrigger>
+
+								<ContextMenuContent>
+									<!-- 引用回复 -->
+									<ContextMenuItem @click="handleQuoteMessage(message)">
+										<Reply class="mr-2 h-4 w-4" />
+										<span>引用回复</span>
+									</ContextMenuItem>
+
+									<!-- 转发 -->
+									<ContextMenuItem @click="handleForwardMessage(message)">
+										<Forward class="mr-2 h-4 w-4" />
+										<span>转发</span>
+									</ContextMenuItem>
+
+									<!-- 复制 - 仅文本消息显示 -->
+									<ContextMenuItem v-if="message.type === 'TEXT'" @click="handleCopyMessage(message.content)">
+										<Copy class="mr-2 h-4 w-4" />
+										<span>复制</span>
+									</ContextMenuItem>
+
+									<!-- 撤回 - 仅自己的消息显示 -->
+									<ContextMenuItem
+										v-if="message.senderId === userStore.userInfo?.id"
+										@click="handleRecallMessage(message.id)"
+									>
+										<RotateCcw class="mr-2 h-4 w-4" />
+										<span>撤回</span>
+									</ContextMenuItem>
+
+									<ContextMenuSeparator />
+
+									<!-- 删除 -->
+									<ContextMenuItem
+										@click="handleDeleteMessage(message.id)"
+										class="text-red-600 focus:text-red-600 focus:bg-red-50"
+									>
+										<Trash2 class="mr-2 h-4 w-4" />
+										<span>删除</span>
+									</ContextMenuItem>
+								</ContextMenuContent>
+							</ContextMenu>
 						</div>
 					</div>
 				</template>
@@ -242,6 +317,12 @@ import {
 	RefreshCw,
 	Search,
 	Plus,
+	Trash2,
+	Reply,
+	Forward,
+	CheckSquare,
+	Copy,
+	RotateCcw,
 } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { ChatTypingManager } from '@/utils/chat-typing'
@@ -249,6 +330,13 @@ import { formatDistanceToNow } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { TypingStatusEvent, ChatParticipant } from './types'
 import TypingIndicator from '@/components/ui/typing-indicator.vue'
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuTrigger,
+	ContextMenuSeparator,
+} from '@/components/ui/context-menu'
 
 const TAG = '🏠️ Home:'
 const userStore = useUserStore()
@@ -698,6 +786,49 @@ const filteredChats = computed(() => {
 // 新建聊天的处理方法
 const handleNewChat = () => {
 	router.push('/contacts')
+}
+
+// 添加处理函数
+const handleMarkAsRead = (chatId: number) => {
+	// TODO: 实现标记已读功能
+	console.log('标记已读:', chatId)
+}
+
+const handlePinChat = (chatId: number) => {
+	// TODO: 实现置顶功能
+	console.log('置顶聊天:', chatId)
+}
+
+const handleDeleteChat = (chatId: number) => {
+	// TODO: 实现删除功能
+	console.log('删除聊天:', chatId)
+}
+
+const handleMultiSelect = () => {
+	// TODO: 实现多选功能
+	console.log('开启多选模式')
+}
+
+// 添加消息操作的处理函数
+const handleQuoteMessage = (message: any) => {
+	console.log('引用回复:', message)
+}
+
+const handleForwardMessage = (message: any) => {
+	console.log('转发消息:', message)
+}
+
+const handleCopyMessage = (content: string) => {
+	navigator.clipboard.writeText(content)
+	toastService.success('已复制')
+}
+
+const handleRecallMessage = async (messageId: number) => {
+	console.log('撤回消息:', messageId)
+}
+
+const handleDeleteMessage = async (messageId: number) => {
+	console.log('删除消息:', messageId)
 }
 </script>
 
