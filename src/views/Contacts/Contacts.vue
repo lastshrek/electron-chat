@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:08:47
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-26 19:00:23
+ * @LastEditTime : 2025-02-28 20:58:17
  * @FilePath     : /src/views/Contacts/Contacts.vue
  * @Description  : Contacts page
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -640,11 +640,13 @@ const handleAddFriend = async () => {
 }
 
 // 处理发送消息
-const handleSendMessage = () => {
+const handleSendMessage = async () => {
 	if (!selectedContact.value) return
 
 	const chatId = selectedContact.value.chatId
 	if (!chatId) {
+		// 获取chat
+		// const chat = await authApi.getChat(selectedContact.value.id)
 		toastService.error('聊天记录不存在', '')
 		return
 	}

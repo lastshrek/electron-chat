@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:28:39
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-26 20:24:46
+ * @LastEditTime : 2025-02-28 21:42:20
  * @FilePath     : /src/views/Home/Home.vue
  * @Description  : 
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -250,10 +250,10 @@ import {
 } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { ChatTypingManager } from '@/utils/chat-typing'
-import TypingIndicator from '@/components/ui/typing-indicator.vue'
-import AsyncImage from '@/components/ui/async-image.vue'
 import { formatDistanceToNow } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
+import { TypingStatusEvent, ChatParticipant } from './types'
+import TypingIndicator from '@/components/ui/typing-indicator.vue'
 
 const TAG = '🏠️ Home:'
 const userStore = useUserStore()
@@ -275,20 +275,12 @@ const messageGroups = computed(() => {
 const messageList = ref<HTMLElement | null>(null)
 
 const typingUsers = ref<number[]>([])
-const typingManager = ref<ChatTypingManager>()
+const typingManager = ref<ChatTypingManager | null>(null)
 
 // 加载状态
 const isLoadingMessages = ref(false)
 
 // 修改类型定义
-interface ChatParticipant {
-	chat_id: number
-	user_id: number
-	role: string
-	username: string
-	avatar: string
-	id: number // 添加 id 字段
-}
 
 // 修改参与者缓存的类型
 const participantsCache = ref(new Map<number, Array<ChatParticipant>>())
@@ -331,7 +323,7 @@ onMounted(async () => {
 
 	if (wsService.socket) {
 		typingManager.value = new ChatTypingManager(wsService.socket)
-		typingManager.value.on('typingStatusChanged', ({ chatId, userId, typing }) => {
+		typingManager.value.on('typingStatusChanged', ({ chatId, userId, typing }: TypingStatusEvent) => {
 			if (selectedChat.value?.id === chatId && userId !== userStore.userInfo?.id) {
 				if (typing && !typingUsers.value.includes(userId)) {
 					typingUsers.value.push(userId)
@@ -403,7 +395,7 @@ const loadMessagesAround = async (chatId: number, messageId: number) => {
 		isLoadingMessages.value = true
 
 		// 调用API获取消息周围的消息
-		const response = (await messageService.getMessagesAround(chatId, messageId)) as unknown as any[]
+		const response = await messageService.getMessagesAround(chatId, messageId)
 		console.log('加载前20条消息的消息:', response)
 		// 更新消息存储
 		if (response) {
@@ -513,10 +505,7 @@ const sendMessage = async () => {
 	console.log(TAG, '发送消息:', selectedChat.value)
 
 	const otherParticipant = await getOtherParticipant(selectedChat.value)
-	if (!otherParticipant) {
-		toastService.error('发送失败', '找不到聊天对象')
-		return
-	}
+	if (!otherParticipant) return toastService.error('发送失败', '找不到聊天对象')
 
 	const success = await messageService.sendTextMessage(selectedChat.value.id, otherParticipant.id, message.value)
 
@@ -668,27 +657,23 @@ const getTypingUserAvatar = () => {
 	return user?.avatar || ''
 }
 
-// 监听打字状态变化
-watch(
-	() => typingManager.value,
-	newManager => {
-		if (newManager) {
-			newManager.on('typingStatusChanged', ({ chatId, userId, typing }) => {
-				console.log('打字状态变化:', { chatId, userId, typing, selectedChatId: selectedChat.value?.id })
-				if (selectedChat.value?.id === chatId && userId !== userStore.userInfo?.id) {
-					if (typing && !typingUsers.value.includes(userId)) {
-						console.log('添加打字用户:', userId)
-						typingUsers.value.push(userId)
-					} else if (!typing) {
-						console.log('移除打字用户:', userId)
-						typingUsers.value = typingUsers.value.filter(id => id !== userId)
-					}
+// 监听打字状态管理器变化
+watch(typingManager, newManager => {
+	if (newManager) {
+		newManager.on('typingStatusChanged', ({ chatId, userId, typing }: TypingStatusEvent) => {
+			console.log('打字状态变化:', { chatId, userId, typing, selectedChatId: selectedChat.value?.id })
+			if (selectedChat.value?.id === chatId && userId !== userStore.userInfo?.id) {
+				if (typing && !typingUsers.value.includes(userId)) {
+					console.log('添加打字用户:', userId)
+					typingUsers.value.push(userId)
+				} else if (!typing) {
+					console.log('移除打字用户:', userId)
+					typingUsers.value = typingUsers.value.filter(id => id !== userId)
 				}
-			})
-		}
-	},
-	{ immediate: true }
-)
+			}
+		})
+	}
+})
 
 // 添加一个清除打字用户的方法
 const clearTypingUsers = () => {

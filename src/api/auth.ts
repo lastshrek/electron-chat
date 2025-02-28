@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:14:45
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-26 15:49:39
+ * @LastEditTime : 2025-02-28 21:27:48
  * @FilePath     : /src/api/auth.ts
  * @Description  : auth api
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -16,7 +16,6 @@ import type {
 	RegisterParams,
 	RegisterResult,
 	SearchResponse,
-	FriendRequestParams,
 	UserInfo,
 	Friend,
 	FriendRequestResponse,
@@ -90,7 +89,7 @@ interface MeetingListResponse {
 export const authApi = {
 	// 登录
 	login: (params: LoginParams) => {
-		return request.post<LoginResponse>('/users/login', params)
+		return request.post('/users/login', params)
 	},
 
 	// 登出
