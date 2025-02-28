@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:08:47
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-28 20:58:17
+ * @LastEditTime : 2025-02-28 22:19:50
  * @FilePath     : /src/views/Contacts/Contacts.vue
  * @Description  : Contacts page
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -349,6 +349,8 @@ import OrganizationTree from '@/components/OrganizationTree.vue'
 // 导入拼音排序工具
 import { pinyin } from 'pinyin-pro'
 import router from '@/router'
+import { ContactGroup, FriendListItem, SearchUser } from './types'
+import { chatApi } from '@/api/chat'
 
 // 定义常量
 const TAG = '👨‍🚀 Contacts.vue'
@@ -371,35 +373,6 @@ const debounceSearch = () => {
 	searchTimeout = setTimeout(() => {
 		handleSearch()
 	}, 300) as unknown as number
-}
-
-// 类型定义
-interface SearchUser {
-	id: number
-	username: string
-	name: string
-	avatar: string
-	description?: string
-	isFriend?: boolean
-	chatId?: number
-}
-
-interface FriendListItem {
-	id: number
-	username: string
-	name: string
-	avatar: string
-	description: string
-	isFriend: boolean
-}
-
-interface ContactGroup {
-	id: 'friends' | 'organization' | 'new-friends'
-	title: string
-	icon: any
-	expanded: boolean
-	count: number
-	items: SearchUser[]
 }
 
 // 状态变量
@@ -642,13 +615,14 @@ const handleAddFriend = async () => {
 // 处理发送消息
 const handleSendMessage = async () => {
 	if (!selectedContact.value) return
-
-	const chatId = selectedContact.value.chatId
+	console.log('selectedContact.value', selectedContact.value)
+	let chatId = selectedContact.value.chatId
 	if (!chatId) {
-		// 获取chat
-		// const chat = await authApi.getChat(selectedContact.value.id)
-		toastService.error('聊天记录不存在', '')
-		return
+		const userId = selectedContact.value.id
+		const chat = await chatApi.getDirectChat(userId)
+		console.log(TAG, '找到聊天室成功', chat)
+		chatStore.setChat(chat)
+		chatId = chat.id
 	}
 
 	// 打印路由信息
@@ -656,7 +630,7 @@ const handleSendMessage = async () => {
 	console.log('Target route:', {
 		name: 'chat',
 		params: {
-			chatId: chatId.toString(),
+			chatId: chatId?.toString(),
 		},
 	})
 
@@ -665,7 +639,7 @@ const handleSendMessage = async () => {
 		.push({
 			name: 'chat', // 使用命名路由
 			params: {
-				chatId: chatId.toString(), // 确保转换为字符串
+				chatId: chatId?.toString(), // 确保转换为字符串
 			},
 		})
 		.then(() => {
@@ -676,7 +650,7 @@ const handleSendMessage = async () => {
 		})
 
 	// 清除未读消息
-	chatStore.clearUnread(chatId)
+	if (chatId) chatStore.clearUnread(chatId)
 }
 
 // 处理好友请求响应

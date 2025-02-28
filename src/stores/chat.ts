@@ -175,10 +175,7 @@ export const useChatStore = defineStore('chat', {
 
 				const chats = res
 
-				if (!chats?.chats || chats.chats.length === 0) {
-					console.warn('未获取到任何聊天')
-					return
-				}
+				if (chats.chats.length === 0) return console.log('当前暂无聊天')
 
 				// 清空现有聊天列表
 				this.chats.clear()

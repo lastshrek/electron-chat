@@ -203,22 +203,6 @@ class MessageService {
 			throw error
 		}
 	}
-
-	// 获取最新的消息
-	async getLatestMessages(chatId: number, limit: number = 20): Promise<any> {
-		try {
-			const response = await request.get(`/messages/latest`, {
-				params: {
-					chatId,
-					limit,
-				},
-			})
-			return response.data
-		} catch (error) {
-			console.error('获取最新消息失败:', error)
-			throw error
-		}
-	}
 }
 
 export const messageService = new MessageService()

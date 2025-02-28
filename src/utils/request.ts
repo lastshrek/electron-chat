@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2024-04-28 09:32:47
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-28 21:25:36
+ * @LastEditTime : 2025-02-28 22:00:40
  * @FilePath     : /src/utils/request.ts
  * @Description  : network
  * Copyright 2024 lastshrek, All Rights Reserved.
@@ -63,7 +63,7 @@ class HttpClient {
 			response => {
 				this.clearQueue(response.config.url)
 
-				return response.data
+				return response.data.data
 			},
 			error => {
 				this.clearQueue(error.config?.url)

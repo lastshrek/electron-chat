@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:28:39
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-28 21:42:20
+ * @LastEditTime : 2025-02-28 22:24:10
  * @FilePath     : /src/views/Home/Home.vue
  * @Description  : 
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -12,15 +12,30 @@
 	<div class="flex h-full w-full">
 		<!-- 会话列表 - 固定宽度 -->
 		<div class="w-72 border-r bg-slate-50 flex flex-col min-w-0 shrink-0">
-			<div class="h-14 border-b flex items-center px-4 shrink-0">
-				<h2 class="font-medium">消息</h2>
+			<!-- 修改顶部搜索区域 -->
+			<div class="h-14 border-b flex items-center gap-2 px-3 shrink-0">
+				<div class="flex-1 relative">
+					<input
+						type="text"
+						v-model="searchQuery"
+						placeholder="搜索消息..."
+						class="w-full h-8 pl-8 pr-3 text-sm bg-gray-100 border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+					/>
+					<Search class="w-4 h-4 text-gray-400 absolute left-2.5 top-2" />
+				</div>
+				<button
+					class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+					@click="handleNewChat"
+				>
+					<Plus class="w-5 h-5 text-gray-600" />
+				</button>
 			</div>
 
 			<!-- 会话列表 -->
-			<div class="flex-1 overflow-y-auto">
-				<div v-if="chatsArray.length > 0">
+			<div class="flex-1 overflow-y-auto select-none">
+				<div v-if="filteredChats.length > 0">
 					<div
-						v-for="chat in chatsArray"
+						v-for="chat in filteredChats"
 						:key="chat.id"
 						class="flex items-center p-4 cursor-pointer hover:bg-slate-100 transition-colors"
 						:class="{ 'bg-blue-50': selectedChat?.id === chat.id }"
@@ -70,7 +85,7 @@
 						</div>
 					</div>
 				</div>
-				<div v-else class="flex flex-col items-center justify-center h-full p-6 text-center">
+				<div v-else class="flex flex-col items-center justify-center h-full p-6 text-center select-none">
 					<MessageSquare class="w-12 h-12 text-gray-300 mb-4" />
 					<p class="text-gray-500">暂无聊天记录</p>
 					<p class="text-sm text-gray-400 mt-2">在联系人中选择好友开始聊天</p>
@@ -78,151 +93,128 @@
 			</div>
 		</div>
 
-		<!-- 聊天区域 - 使用 overflow-hidden 和 min-w-0 控制溢出 -->
-		<div class="flex-1 flex flex-col bg-white overflow-hidden min-w-0">
-			<template v-if="selectedChat">
-				<!-- 头部 -->
-				<div class="h-14 border-b flex items-center px-4 shrink-0">
-					<div class="flex items-center truncate">
-						<h2 class="font-medium truncate">
-							{{ selectedChat?.otherUser?.username || selectedChat?.name || '聊天' }}
-						</h2>
-					</div>
+		<!-- 右侧聊天区域 -->
+		<div class="flex-1 flex flex-col min-w-0">
+			<!-- 聊天头部 -->
+			<div class="h-14 border-b flex items-center px-4 justify-between shrink-0 bg-white">
+				<div class="flex items-center gap-2">
+					<h2 class="font-medium">{{ selectedChat?.otherUser?.username || selectedChat?.name }}</h2>
+					<TypingIndicator v-if="typingUsers.length > 0" :name="getTypingUserName()" :avatar="getTypingUserAvatar()" />
 				</div>
+			</div>
 
-				<!-- 消息列表 -->
-				<div class="flex-1 overflow-y-auto p-4 space-y-4" ref="messageList">
-					<template v-for="message in messageGroups" :key="message.id">
-						<!-- 消息容器 -->
+			<!-- 消息列表区域 -->
+			<div ref="messageList" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
+				<template v-for="(message, index) in messageGroups" :key="message.id">
+					<!-- 消息时间分割线 -->
+					<div v-if="shouldShowTimestamp(message, messageGroups[index - 1])" class="flex justify-center my-2">
+						<span class="text-xs text-gray-400 bg-white px-2 py-1 rounded-full shadow-sm">
+							{{ formatMessageTime(message.createdAt) }}
+						</span>
+					</div>
+
+					<!-- 消息气泡容器 -->
+					<div
+						class="flex items-start gap-2 px-2"
+						:class="message.senderId === userStore.userInfo?.id ? 'flex-row-reverse' : ''"
+					>
+						<!-- 头像 -->
+						<img
+							:src="message.sender?.avatar"
+							:alt="message.sender?.username"
+							class="w-8 h-8 rounded-full flex-shrink-0"
+						/>
+
+						<!-- 消息内容区域 -->
 						<div
-							class="flex items-start gap-2"
-							:class="[message.sender?.id === userStore.userInfo?.id ? 'flex-row-reverse' : 'flex-row']"
+							class="group relative max-w-[70%]"
+							:class="message.senderId === userStore.userInfo?.id ? 'items-end' : 'items-start'"
 						>
-							<!-- 头像 -->
-							<div class="flex-shrink-0">
-								<img
-									v-if="message.sender?.avatar"
-									:src="message.sender.avatar"
-									:alt="message.sender?.username || '用户头像'"
-									class="w-8 h-8 rounded-lg hover:rounded-3xl transition-all duration-300"
-								/>
-								<div v-else class="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center">
-									<span class="text-slate-500 text-xs">
-										{{ message.sender?.username?.[0]?.toUpperCase() || '?' }}
-									</span>
-								</div>
+							<!-- 发送者名称 -->
+							<div v-if="message.senderId !== userStore.userInfo?.id" class="text-xs text-gray-500 mb-1 px-1">
+								{{ message.sender?.username }}
 							</div>
 
-							<!-- 消息内容 -->
+							<!-- 消息气泡 -->
 							<div
-								class="flex flex-col max-w-[70%]"
-								:class="[message.sender?.id === userStore.userInfo?.id ? 'items-end' : 'items-start']"
+								class="rounded-2xl px-4 py-2 shadow-sm"
+								:class="[
+									message.senderId === userStore.userInfo?.id
+										? 'bg-blue-500 text-white ml-auto'
+										: 'bg-white text-gray-900',
+								]"
 							>
-								<!-- 发送者名称 -->
-								<div class="text-xs text-slate-400 mb-1">
-									{{ message.sender?.username }}
-								</div>
+								<!-- 文本消息 -->
+								<p v-if="message.type === 'TEXT'" class="whitespace-pre-wrap break-words text-sm">
+									{{ message.content }}
+								</p>
 
-								<!-- 消息气泡 -->
+								<!-- 图片消息 -->
+								<img
+									v-else-if="message.type === 'IMAGE'"
+									:src="message.content"
+									class="max-w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+									@click="previewImage(message.content)"
+								/>
+
+								<!-- 文件消息 -->
 								<div
-									class="flex items-end gap-2"
-									:class="[message.sender?.id === userStore.userInfo?.id ? 'flex-row-reverse' : 'flex-row']"
+									v-else-if="message.type === 'FILE'"
+									class="flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity"
+									@click="downloadFile(message.content)"
 								>
-									<div
-										class="rounded-lg px-3 py-2 break-words"
-										:class="[
-											message.sender?.id === userStore.userInfo?.id
-												? 'bg-blue-500 text-white'
-												: 'bg-slate-100 text-slate-700',
-										]"
-									>
-										{{ message.content }}
-									</div>
-
-									<!-- 消息状态（只在自己发送的消息上显示） -->
-									<div
-										v-if="message.sender?.id === userStore.userInfo?.id"
-										class="text-xs text-slate-400 flex items-center"
-									>
-										<span v-if="message.status === 'SENDING'" class="animate-spin">
-											<Loader2Icon class="w-3 h-3" />
-										</span>
-										<span v-else-if="message.status === 'SENT'">
-											<CheckIcon class="w-3 h-3" />
-										</span>
-										<span v-else-if="message.status === 'DELIVERED'">
-											<CheckCheckIcon class="w-3 h-3" />
-										</span>
-										<span v-else-if="message.status === 'FAILED'" class="text-red-500">
-											<XIcon class="w-3 h-3" />
-											<button class="ml-1 hover:text-red-600" @click="handleResend(message.id)">
-												<RefreshCwIcon class="w-3 h-3" />
-											</button>
-										</span>
-									</div>
+									<Paperclip class="w-4 h-4" />
+									<span class="text-sm">{{ message.metadata?.fileName }}</span>
 								</div>
 							</div>
-						</div>
-					</template>
-				</div>
 
-				<!-- 在消息列表底部显示打字指示器 -->
-				<div v-if="typingUsers?.length > 0" class="flex items-center gap-2 mb-2">
-					<div class="flex-shrink-0">
-						<img v-if="getTypingUserAvatar()" :src="getTypingUserAvatar()" alt="用户头像" class="w-8 h-8 rounded-lg" />
-						<div v-else class="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center">
-							<span class="text-slate-500 text-xs">?</span>
-						</div>
-					</div>
-					<div class="bg-slate-100 rounded-lg p-2 px-3 flex items-center">
-						<span class="text-sm text-slate-600 mr-2">{{ getTypingUserName() }}</span>
-						<typing-indicator />
-					</div>
-				</div>
-
-				<!-- 输入区域 -->
-				<div class="h-32 border-t p-4 shrink-0">
-					<div class="relative h-full flex">
-						<!-- 输入框 - 添加 pr-24 给按钮预留空间 -->
-						<textarea
-							v-model="message"
-							class="w-full h-full px-4 py-3 pr-24 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-							placeholder="输入消息..."
-							@input="handleInput"
-							@focusout="handleFocusOut"
-							@keydown.enter.prevent="sendMessage"
-						></textarea>
-
-						<!-- 按钮组 - 使用绝对定位 -->
-						<div class="absolute right-2 bottom-2 flex items-center space-x-2">
-							<!-- 文件上传按钮 -->
-							<input type="file" class="hidden" id="file-upload" @change="handleFileUpload" />
-							<label
-								for="file-upload"
-								class="h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
+							<!-- 消息状态 -->
+							<div
+								class="flex items-center gap-1 mt-1 px-1"
+								:class="message.senderId === userStore.userInfo?.id ? 'justify-end' : 'justify-start'"
 							>
-								<Paperclip class="w-4 h-4" />
-							</label>
-
-							<!-- 发送按钮 -->
-							<button
-								class="h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:pointer-events-none disabled:opacity-50"
-								:disabled="!message.trim()"
-								@click="sendMessage"
-							>
-								发送
-							</button>
+								<span class="text-xs text-gray-400">
+									{{ formatTime(message.createdAt) }}
+								</span>
+								<template v-if="message.senderId === userStore.userInfo?.id">
+									<Check v-if="message.status === 'SENT'" class="w-3 h-3 text-gray-400" />
+									<CheckCheck v-else-if="message.status === 'DELIVERED'" class="w-3 h-3 text-gray-400" />
+									<CheckCheck v-else-if="message.status === 'READ'" class="w-3 h-3 text-blue-500" />
+									<button
+										v-else-if="message.status === 'FAILED'"
+										class="text-red-500 hover:text-red-600 transition-colors"
+										@click="handleResend(message.id)"
+									>
+										<RefreshCw class="w-3 h-3" />
+									</button>
+								</template>
+							</div>
 						</div>
 					</div>
-				</div>
-			</template>
+				</template>
+			</div>
 
-			<!-- 未选中聊天时显示的提示 -->
-			<template v-else>
-				<div class="flex-1 flex items-center justify-center text-slate-400">
-					<p>选择一个联系人开始聊天</p>
+			<!-- 输入区域 -->
+			<div class="border-t p-4 bg-white">
+				<div class="flex items-end gap-2">
+					<textarea
+						v-model="message"
+						rows="1"
+						class="flex-1 resize-none rounded-lg border border-gray-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+						placeholder="输入消息..."
+						@input="handleInput"
+						@keydown.enter.exact.prevent="sendMessage"
+						@blur="handleStopTyping"
+					/>
+					<button
+						class="px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+						:disabled="!message.trim()"
+						@click="sendMessage"
+					>
+						发送
+					</button>
 				</div>
-			</template>
+			</div>
 		</div>
 	</div>
 </template>
@@ -247,6 +239,9 @@ import {
 	Check,
 	CheckCheck,
 	AlertCircle,
+	RefreshCw,
+	Search,
+	Plus,
 } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { ChatTypingManager } from '@/utils/chat-typing'
@@ -378,11 +373,7 @@ const selectChat = (chat: ChatInfo) => {
 	// 如果有最后一条消息，则获取该消息周围的消息
 	if (chat.lastMessage) {
 		loadMessagesAround(chat.id, chat.lastMessage.id)
-	} else {
-		// 如果没有最后一条消息，则获取最新的消息
-		loadLatestMessages(chat.id)
 	}
-
 	nextTick(() => {
 		scrollToBottom()
 	})
@@ -400,27 +391,6 @@ const loadMessagesAround = async (chatId: number, messageId: number) => {
 		// 更新消息存储
 		if (response) {
 			messageStore.setMessages(chatId, response.messages)
-		}
-	} catch (error) {
-		console.error('加载消息失败:', error)
-		toastService.error('加载失败', '无法加载聊天记录')
-	} finally {
-		isLoadingMessages.value = false
-	}
-}
-
-// 加载最新的消息
-const loadLatestMessages = async (chatId: number) => {
-	try {
-		// 显示加载状态
-		isLoadingMessages.value = true
-
-		// 调用API获取最新的消息
-		const response = await messageService.getLatestMessages(chatId)
-
-		// 更新消息存储
-		if (response && Array.isArray(response)) {
-			messageStore.setMessages(chatId, response)
 		}
 	} catch (error) {
 		console.error('加载消息失败:', error)
@@ -454,26 +424,8 @@ watch(
 				console.error('Chat not found:', chatId)
 				// 可能需要添加错误提示
 				toastService.error('聊天不存在', '请重新选择聊天')
-				// 如果找不到聊天，可以重新获取聊天列表
-				// chatStore.loadChats().then(() => {
-				// 	const updatedChat = chats.value.get(Number(chatId))
-				// 	if (updatedChat) {
-				// 		selectedChat.value = updatedChat
-				// 		chatStore.clearUnread(updatedChat.id)
-				// 		wsService.joinChat(updatedChat.id)
-
-				// 		// 加载消息
-				// 		if (updatedChat.lastMessage) {
-				// 			loadMessagesAround(updatedChat.id, updatedChat.lastMessage.id)
-				// 		} else {
-				// 			loadLatestMessages(updatedChat.id)
-				// 		}
-
-				// 		nextTick(() => {
-				// 			scrollToBottom()
-				// 		})
-				// 	}
-				// })
+				// 返回首页
+				router.push('/')
 			}
 		} else {
 			selectedChat.value = null
@@ -482,19 +434,60 @@ watch(
 	{ immediate: true }
 )
 
+// 判断是否需要显示时间戳
+const shouldShowTimestamp = (currentMessage: any, previousMessage: any) => {
+	if (!previousMessage) return true
+
+	const currentTime = new Date(currentMessage.createdAt)
+	const previousTime = new Date(previousMessage.createdAt)
+
+	// 如果两条消息间隔超过5分钟，显示时间戳
+	const timeDiff = currentTime.getTime() - previousTime.getTime()
+	const fiveMinutes = 5 * 60 * 1000
+
+	return timeDiff > fiveMinutes
+}
+
+// 格式化消息时间
+const formatMessageTime = (timestamp: string) => {
+	return formatDistanceToNow(new Date(timestamp), {
+		addSuffix: true,
+		locale: zhCN,
+	})
+}
+
 // 格式化时间
-const formatTime = (timestamp?: string) => {
+const formatTime = (timestamp: string) => {
 	if (!timestamp) return ''
 
-	try {
-		return formatDistanceToNow(new Date(timestamp), {
-			addSuffix: true,
-			locale: zhCN,
+	const date = new Date(timestamp)
+	const now = new Date()
+
+	// 如果是今天的消息，只显示时间
+	if (date.toDateString() === now.toDateString()) {
+		return date.toLocaleTimeString('zh-CN', {
+			hour: '2-digit',
+			minute: '2-digit',
 		})
-	} catch (error) {
-		console.error('时间格式化错误:', error)
-		return timestamp
 	}
+
+	// 如果是昨天的消息，显示"昨天"和时间
+	const yesterday = new Date(now)
+	yesterday.setDate(yesterday.getDate() - 1)
+	if (date.toDateString() === yesterday.toDateString()) {
+		return `昨天 ${date.toLocaleTimeString('zh-CN', {
+			hour: '2-digit',
+			minute: '2-digit',
+		})}`
+	}
+
+	// 其他情况显示完整日期和时间
+	return date.toLocaleString('zh-CN', {
+		month: '2-digit',
+		day: '2-digit',
+		hour: '2-digit',
+		minute: '2-digit',
+	})
 }
 
 // 修改发送消息的方法
@@ -688,6 +681,24 @@ watch(
 		clearTypingUsers()
 	}
 )
+
+// 添加搜索相关的状态和方法
+const searchQuery = ref('')
+const filteredChats = computed(() => {
+	if (!searchQuery.value) return chatsArray.value
+
+	const query = searchQuery.value.toLowerCase()
+	return chatsArray.value.filter(chat => {
+		const name = (chat.otherUser?.username || chat.name || '').toLowerCase()
+		const lastMessage = (chat.lastMessage?.content || '').toLowerCase()
+		return name.includes(query) || lastMessage.includes(query)
+	})
+})
+
+// 新建聊天的处理方法
+const handleNewChat = () => {
+	router.push('/contacts')
+}
 </script>
 
 <style scoped>
