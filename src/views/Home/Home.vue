@@ -622,7 +622,17 @@ const handleFocusOut = (event: FocusEvent) => {
 	handleStopTyping()
 }
 
-// 修改文件上传方法
+// 添加一个新的方法来触发文件输入
+const triggerFileInput = () => {
+	const input = document.createElement('input')
+	input.type = 'file'
+	// 移除文件类型限制，允许所有文件类型
+	// input.accept = 'image/*,video/*,audio/*,application/pdf'
+	input.onchange = handleFileUpload
+	input.click()
+}
+
+// 处理文件上传
 const handleFileUpload = async (event: Event) => {
 	const input = event.target as HTMLInputElement
 	const file = input.files?.[0]
@@ -634,13 +644,50 @@ const handleFileUpload = async (event: Event) => {
 		return
 	}
 
-	const success = await messageService.sendFileMessage(selectedChat.value.id, otherParticipant.id, file)
+	let success = false
 
-	if (!success) {
+	try {
+		// 根据文件类型选择处理方式
+		if (file.type.startsWith('image/')) {
+			success = await messageService.sendImageMessage(selectedChat.value.id, otherParticipant.id, file)
+		} else if (file.type.startsWith('audio/')) {
+			const duration = await getAudioDuration(file)
+			success = await messageService.sendVoiceMessage(selectedChat.value.id, otherParticipant.id, file, duration)
+		} else if (file.type.startsWith('video/')) {
+			success = await messageService.sendVideoMessage(selectedChat.value.id, otherParticipant.id, file)
+		} else {
+			// 其他所有类型都作为普通文件处理
+			success = await messageService.sendFileMessage(selectedChat.value.id, otherParticipant.id, file)
+		}
+
+		if (!success) {
+			toastService.error('发送失败', '请稍后重试')
+		}
+	} catch (error) {
+		console.error('文件上传失败:', error)
 		toastService.error('发送失败', '请稍后重试')
+	} finally {
+		input.value = ''
 	}
+}
 
-	input.value = ''
+// 获取音频文件时长
+const getAudioDuration = (file: File): Promise<number> => {
+	return new Promise(resolve => {
+		const audio = new Audio()
+		audio.src = URL.createObjectURL(file)
+
+		audio.addEventListener('loadedmetadata', () => {
+			URL.revokeObjectURL(audio.src)
+			resolve(audio.duration)
+		})
+
+		// 如果加载失败，返回0
+		audio.addEventListener('error', () => {
+			URL.revokeObjectURL(audio.src)
+			resolve(0)
+		})
+	})
 }
 
 // 处理消息重发
@@ -834,15 +881,6 @@ const handleRecallMessage = async (messageId: number) => {
 
 const handleDeleteMessage = async (messageId: number) => {
 	console.log('删除消息:', messageId)
-}
-
-// 添加一个新的方法来触发文件输入
-const triggerFileInput = () => {
-	const input = document.createElement('input')
-	input.type = 'file'
-	input.accept = 'image/*,video/*,audio/*,application/pdf'
-	input.onchange = handleFileUpload
-	input.click()
 }
 
 // 下载文件和图片通用的处理函数

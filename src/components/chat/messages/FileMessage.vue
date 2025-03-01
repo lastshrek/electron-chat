@@ -16,7 +16,7 @@
 				<!-- 文件名和大小 -->
 				<div class="flex-1 min-w-0">
 					<p class="font-medium text-gray-900 truncate" :title="message.metadata?.fileName">
-						{{ message.metadata?.fileName }}
+						{{ getTruncatedFileName(message.metadata?.fileName || '') }}
 					</p>
 					<p class="text-xs text-gray-500">
 						{{ formatFileSize(message.metadata?.fileSize || 0) }}
@@ -109,5 +109,22 @@ const formatFileSize = (bytes: number) => {
 	}
 
 	return `${size.toFixed(1)} ${units[unitIndex]}`
+}
+
+const getTruncatedFileName = (fileName: string, maxLength = 20) => {
+	if (fileName.length <= maxLength) return fileName
+
+	const extension = fileName.split('.').pop() || ''
+	const nameWithoutExt = fileName.slice(0, fileName.lastIndexOf('.'))
+
+	// 计算需要保留的文件名长度
+	const truncateLength = maxLength - extension.length - 3 // 3 是省略号的长度
+
+	if (truncateLength <= 0) {
+		// 如果文件名太短，只显示前几个字符和扩展名
+		return `${nameWithoutExt.slice(0, maxLength - 5)}...${extension}`
+	}
+
+	return `${nameWithoutExt.slice(0, truncateLength)}...${extension}`
 }
 </script>

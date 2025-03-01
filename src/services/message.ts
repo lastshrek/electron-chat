@@ -1,15 +1,13 @@
 import { wsService } from '@/services/ws'
 import type { BaseMessageDto } from '@/types/message'
-import { MessageType } from '@/types/message'
+import { MessageType, MessageStatus, type Message, type MessageMetadata } from '@/types/message'
 import { useMessageStore } from '@/stores/message'
 import { useUserStore } from '@/stores/user'
 import { useChatStore } from '@/stores/chat'
-import { MessageStatus } from '@/types/message'
 import request from '@/utils/request'
 import { chatApi } from '@/api/chat'
-import type { Message, MessageMetadata } from '@/types/message'
 
-class MessageService {
+export class MessageService {
 	// 发送文本消息
 	async sendTextMessage(
 		chatId: number,
@@ -97,98 +95,138 @@ class MessageService {
 
 	// 发送图片消息
 	async sendImageMessage(chatId: number, receiverId: number, file: File) {
-		// 先上传图片
-		const formData = new FormData()
-		formData.append('file', file)
-
 		try {
-			// TODO: 实现文件上传API
-			const response = await fetch('/api/upload', {
-				method: 'POST',
-				body: formData,
+			// 获取图片预览
+			const previewUrl = await this.getImagePreview(file)
+
+			// 创建临时消息
+			const tempMessage = await this.createTempMessage({
+				chatId,
+				receiverId,
+				type: MessageType.IMAGE,
+				content: previewUrl,
+				file,
+				previewUrl,
 			})
-			const { url } = await response.json()
+
+			// 上传文件
+			const res = await chatApi.uploadFile(file, 'image')
+
+			// 构建元数据
+			const metadata: MessageMetadata = {
+				fileName: file.name,
+				fileSize: file.size,
+				mimeType: file.type,
+				url: res.url,
+				thumbnail: res.thumbnail,
+				width: res.width,
+				height: res.height,
+			}
 
 			// 发送消息
-			return this.sendTextMessage(chatId, receiverId, url)
+			await this.sendMessage(tempMessage.id, {
+				chatId,
+				receiverId,
+				content: res.url,
+				metadata,
+				type: MessageType.IMAGE,
+			})
+
+			return true
 		} catch (error) {
-			console.error('发送图片失败:', error)
+			console.error('发送图片消息失败:', error)
+			return false
+		}
+	}
+
+	// 发送语音消息
+	async sendVoiceMessage(chatId: number, receiverId: number, file: File, duration: number) {
+		try {
+			const tempMessage = await this.createTempMessage({
+				chatId,
+				receiverId,
+				type: MessageType.VOICE,
+				content: file.name,
+				file,
+			})
+
+			const res = await chatApi.uploadFile(file, 'voice')
+
+			const metadata: MessageMetadata = {
+				fileName: file.name,
+				fileSize: file.size,
+				mimeType: file.type,
+				url: res.url,
+				duration,
+			}
+
+			await this.sendMessage(tempMessage.id, {
+				chatId,
+				receiverId,
+				content: file.name,
+				metadata,
+				type: MessageType.VOICE,
+			})
+
+			return true
+		} catch (error) {
+			console.error('发送语音消息失败:', error)
+			return false
+		}
+	}
+
+	// 发送视频消息
+	async sendVideoMessage(chatId: number, receiverId: number, file: File) {
+		try {
+			const tempMessage = await this.createTempMessage({
+				chatId,
+				receiverId,
+				type: MessageType.VIDEO,
+				content: file.name,
+				file,
+			})
+
+			const res = await chatApi.uploadFile(file, 'video')
+
+			const metadata: MessageMetadata = {
+				fileName: file.name,
+				fileSize: file.size,
+				mimeType: file.type,
+				url: res.url,
+				thumbnail: res.thumbnail,
+				width: res.width,
+				height: res.height,
+				duration: res.duration,
+			}
+
+			await this.sendMessage(tempMessage.id, {
+				chatId,
+				receiverId,
+				content: file.name,
+				metadata,
+				type: MessageType.VIDEO,
+			})
+
+			return true
+		} catch (error) {
+			console.error('发送视频消息失败:', error)
 			return false
 		}
 	}
 
 	// 发送文件消息
 	async sendFileMessage(chatId: number, receiverId: number, file: File) {
-		if (!wsService.socket?.connected) {
-			console.error('WebSocket is not connected')
-			return false
-		}
-
-		const messageStore = useMessageStore()
-		const userStore = useUserStore()
-
-		// 生成临时消息ID
-		const tempId = Date.now()
-
 		try {
-			// 根据文件类型确定上传类型和消息类型
-			let uploadType: 'image' | 'voice' | 'video' | 'file'
-			let messageType: MessageType
-			if (file.type.startsWith('image/')) {
-				uploadType = 'image'
-				messageType = MessageType.IMAGE
-			} else if (file.type.startsWith('audio/')) {
-				uploadType = 'voice'
-				messageType = MessageType.VOICE
-			} else if (file.type.startsWith('video/')) {
-				uploadType = 'video'
-				messageType = MessageType.VIDEO
-			} else {
-				uploadType = 'file'
-				messageType = MessageType.FILE
-			}
-
-			// 如果是图片，先转换为 base64
-			let previewUrl = ''
-			if (uploadType === 'image') {
-				previewUrl = await new Promise<string>(resolve => {
-					const reader = new FileReader()
-					reader.onload = () => resolve(reader.result as string)
-					reader.readAsDataURL(file)
-				})
-			}
-
-			// 创建临时消息
-			const tempMessage: Message = {
-				id: tempId,
+			const tempMessage = await this.createTempMessage({
 				chatId,
 				receiverId,
-				senderId: userStore.userInfo!.id,
-				type: messageType,
-				content: uploadType === 'image' ? previewUrl : file.name,
-				status: MessageStatus.SENDING,
-				createdAt: new Date().toISOString(),
-				updatedAt: new Date().toISOString(),
-				sender: {
-					id: userStore.userInfo!.id,
-					username: userStore.userInfo!.username,
-					avatar: userStore.userInfo!.avatar || '',
-				},
-				metadata: {
-					fileName: file.name,
-					fileSize: file.size,
-					mimeType: file.type,
-					previewUrl: uploadType === 'image' ? previewUrl : undefined,
-				},
-			}
+				type: MessageType.FILE,
+				content: file.name,
+				file,
+			})
 
-			// 添加临时消息到消息列表
-			messageStore.addMessage(tempMessage)
+			const res = await chatApi.uploadFile(file, 'file')
 
-			// 上传文件
-			const res = await chatApi.uploadFile(file, uploadType)
-			console.log('res', res)
-			// 构建消息元数据
 			const metadata: MessageMetadata = {
 				fileName: file.name,
 				fileSize: file.size,
@@ -196,42 +234,17 @@ class MessageService {
 				url: res.url,
 			}
 
-			// 如果是图片，添加额外的元数据
-			if (uploadType === 'image' && res.thumbnail) {
-				metadata.thumbnail = res.thumbnail
-				metadata.width = res.width
-				metadata.height = res.height
-			}
-
-			// 通过 WebSocket 发送消息
-			wsService.socket.emit('message', {
-				type: 'chat',
-				message: {
-					tempId,
-					chatId,
-					receiverId,
-					content: uploadType === 'image' ? res.url : file.name,
-					metadata,
-					type: messageType,
-				},
+			await this.sendMessage(tempMessage.id, {
+				chatId,
+				receiverId,
+				content: file.name,
+				metadata,
+				type: MessageType.FILE,
 			})
-
-			// wsService.socket.emit('message', {
-			// 	type: 'chat',
-			// 	message: {
-			// 		tempId,
-			// 		chatId,
-			// 		receiverId,
-			// 		content,
-			// 		type: MessageType.TEXT,
-			// 	},
-			// })
 
 			return true
 		} catch (error) {
 			console.error('发送文件消息失败:', error)
-			// 更新临时消息状态为失败
-			messageStore.updateMessageStatus(tempId, MessageStatus.FAILED)
 			return false
 		}
 	}
@@ -296,6 +309,84 @@ class MessageService {
 			console.error('下载文件失败:', error)
 			return false
 		}
+	}
+
+	// 私有辅助方法
+	private async getImagePreview(file: File): Promise<string> {
+		return new Promise<string>(resolve => {
+			const reader = new FileReader()
+			reader.onload = () => resolve(reader.result as string)
+			reader.readAsDataURL(file)
+		})
+	}
+
+	private async createTempMessage({
+		chatId,
+		receiverId,
+		type,
+		content,
+		file,
+		previewUrl,
+	}: {
+		chatId: number
+		receiverId: number
+		type: MessageType
+		content: string
+		file: File
+		previewUrl?: string
+	}): Promise<Message> {
+		const messageStore = useMessageStore()
+		const userStore = useUserStore()
+		const tempId = Date.now()
+
+		const tempMessage: Message = {
+			id: tempId,
+			chatId,
+			receiverId,
+			senderId: userStore.userInfo!.id,
+			type,
+			content,
+			status: MessageStatus.SENDING,
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
+			sender: {
+				id: userStore.userInfo!.id,
+				username: userStore.userInfo!.username,
+				avatar: userStore.userInfo!.avatar || '',
+			},
+			metadata: {
+				fileName: file.name,
+				fileSize: file.size,
+				mimeType: file.type,
+				previewUrl,
+			},
+		}
+
+		messageStore.addMessage(tempMessage)
+		return tempMessage
+	}
+
+	private async sendMessage(
+		tempId: number,
+		message: {
+			chatId: number
+			receiverId: number
+			content: string
+			metadata: MessageMetadata
+			type: MessageType
+		}
+	) {
+		if (!wsService.socket?.connected) {
+			throw new Error('WebSocket is not connected')
+		}
+
+		wsService.socket.emit('message', {
+			type: 'chat',
+			message: {
+				tempId,
+				...message,
+			},
+		})
 	}
 }
 
