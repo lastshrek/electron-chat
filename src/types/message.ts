@@ -95,6 +95,7 @@ export interface MessageMetadata {
 	width?: number
 	height?: number
 	previewUrl?: string // 添加预览URL字段
+	duration?: number // 语音/视频时长
 }
 
 export interface Message {
