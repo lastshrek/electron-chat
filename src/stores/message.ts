@@ -93,7 +93,7 @@ export const useMessageStore = defineStore('message', {
 				let success = false
 
 				switch (messageToResend.type) {
-					case 'TEXT':
+					case MessageType.TEXT:
 						success = await messageService.sendTextMessage(
 							chatId,
 							messageToResend.receiverId,

@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:28:39
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-03-01 14:46:48
+ * @LastEditTime : 2025-03-01 23:08:40
  * @FilePath     : /src/views/Home/Home.vue
  * @Description  : 
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -169,71 +169,29 @@
 
 										<!-- 消息气泡 -->
 										<div
-											class="rounded-2xl px-4 py-2 shadow-sm"
+											class="rounded-2xl shadow-sm"
 											:class="[
-												message.type === 'IMAGE'
+												message.type === 'IMAGE' || message.type === 'FILE'
 													? 'p-0 bg-transparent shadow-none'
 													: message.senderId === userStore.userInfo?.id
 													? 'bg-blue-500 text-white'
 													: 'bg-white text-gray-900',
 											]"
 										>
-											<!-- 文本消息 -->
-											<p v-if="message.type === 'TEXT'" class="whitespace-pre-wrap break-words text-sm">
-												{{ message.content }}
-											</p>
-
-											<!-- 图片消息 -->
-											<template v-if="message.type === 'IMAGE'">
-												<div class="relative group">
-													<!-- 图片预览 -->
-													<img
-														:src="message.metadata?.thumbnail || message.content"
-														class="max-w-[240px] max-h-[320px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
-														:style="{
-															width: message.metadata?.width ? Math.min(message.metadata.width, 240) + 'px' : 'auto',
-															height: message.metadata?.height ? Math.min(message.metadata.height, 320) + 'px' : 'auto',
-														}"
-														@click="handlePreviewImage(message.metadata?.url || message.content)"
-													/>
-
-													<!-- 加载中状态 -->
-													<div
-														v-if="message.status === 'SENDING'"
-														class="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg"
-													>
-														<Loader2Icon class="w-6 h-6 text-white animate-spin" />
-													</div>
-
-													<!-- 失败状态 -->
-													<div
-														v-if="message.status === 'FAILED'"
-														class="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg"
-													>
-														<AlertCircle class="w-6 h-6 text-red-500" />
-													</div>
-
-													<!-- 图片操作按钮 -->
-													<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-														<!-- 下载按钮 -->
-														<button
-															class="p-1.5 bg-black/50 hover:bg-black/70 rounded-full text-white transition-colors"
-															@click.stop="handleDownloadFile(message.metadata?.url || message.content)"
-														>
-															<Download class="w-4 h-4" />
-														</button>
-													</div>
+											<!-- 消息渲染部分 -->
+											<div class="message-container">
+												<div v-if="message.type === MessageType.TEXT">
+													<TextMessage :message="message" />
 												</div>
-											</template>
-
-											<!-- 文件消息 -->
-											<div
-												v-else-if="message.type === 'FILE'"
-												class="flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity"
-												@click="downloadFile(message.content)"
-											>
-												<Paperclip class="w-4 h-4" />
-												<span class="text-sm">{{ message.metadata?.fileName }}</span>
+												<div v-else-if="message.type === MessageType.FILE">
+													<FileMessage :message="message" />
+												</div>
+												<div v-else-if="message.type === MessageType.IMAGE">
+													<ImageMessage :message="message" />
+												</div>
+												<div v-else-if="message.type === MessageType.VOICE">
+													<VoiceMessage :message="message" />
+												</div>
 											</div>
 										</div>
 
@@ -376,6 +334,7 @@ import {
 	RotateCcw,
 	Send,
 	Download,
+	FileText,
 } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { ChatTypingManager } from '@/utils/chat-typing'
@@ -390,6 +349,12 @@ import {
 	ContextMenuTrigger,
 	ContextMenuSeparator,
 } from '@/components/ui/context-menu'
+import { MessageType } from '@/types/message'
+import type { Message } from '@/types/message'
+import TextMessage from '@/components/chat/messages/TextMessage.vue'
+import FileMessage from '@/components/chat/messages/FileMessage.vue'
+import ImageMessage from '@/components/chat/messages/ImageMessage.vue'
+import VoiceMessage from '@/components/chat/messages/VoiceMessage.vue'
 
 const TAG = '🏠️ Home:'
 const userStore = useUserStore()
@@ -892,6 +857,67 @@ const handleDownloadFile = async (fileUrl: string) => {
 const handlePreviewImage = (imageUrl: string) => {
 	// TODO: 实现图片预览功能，可以使用第三方库如 viewerjs
 	window.open(imageUrl, '_blank')
+}
+
+const isDownloading = ref(false)
+
+// 处理文件下载
+const handleFileDownload = async (message: Message) => {
+	if (isDownloading.value || !message.metadata?.url) return
+
+	try {
+		isDownloading.value = true
+		await messageService.downloadFile(message.metadata.url)
+	} catch (error) {
+		console.error('下载文件失败:', error)
+		// 可以添加错误提示
+	} finally {
+		isDownloading.value = false
+	}
+}
+
+// 获取文件类型对应的样式
+const getFileTypeClass = (mimeType?: string) => {
+	if (!mimeType) return 'bg-gray-100'
+
+	if (mimeType.startsWith('image/')) return 'bg-blue-50'
+	if (mimeType.startsWith('video/')) return 'bg-purple-50'
+	if (mimeType.startsWith('audio/')) return 'bg-green-50'
+	if (mimeType.includes('pdf')) return 'bg-red-50'
+	if (mimeType.includes('word')) return 'bg-blue-50'
+	if (mimeType.includes('excel')) return 'bg-green-50'
+
+	return 'bg-gray-100'
+}
+
+// 获取文件图标颜色
+const getFileIconColor = (mimeType?: string) => {
+	if (!mimeType) return 'text-gray-500'
+
+	if (mimeType.startsWith('image/')) return 'text-blue-500'
+	if (mimeType.startsWith('video/')) return 'text-purple-500'
+	if (mimeType.startsWith('audio/')) return 'text-green-500'
+	if (mimeType.includes('pdf')) return 'text-red-500'
+	if (mimeType.includes('word')) return 'text-blue-500'
+	if (mimeType.includes('excel')) return 'text-green-500'
+
+	return 'text-gray-500'
+}
+
+// 格式化文件大小
+const formatFileSize = (bytes: number) => {
+	if (!bytes) return '未知大小'
+
+	const units = ['B', 'KB', 'MB', 'GB']
+	let size = bytes
+	let unitIndex = 0
+
+	while (size >= 1024 && unitIndex < units.length - 1) {
+		size /= 1024
+		unitIndex++
+	}
+
+	return `${size.toFixed(1)} ${units[unitIndex]}`
 }
 </script>
 

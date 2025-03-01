@@ -187,7 +187,7 @@ class MessageService {
 
 			// 上传文件
 			const res = await chatApi.uploadFile(file, uploadType)
-
+			console.log('res', res)
 			// 构建消息元数据
 			const metadata: MessageMetadata = {
 				fileName: file.name,
@@ -205,13 +205,27 @@ class MessageService {
 
 			// 通过 WebSocket 发送消息
 			wsService.socket.emit('message', {
-				tempId,
-				type: messageType,
-				chatId,
-				receiverId,
-				content: uploadType === 'image' ? res.url : file.name,
-				metadata,
+				type: 'chat',
+				message: {
+					tempId,
+					chatId,
+					receiverId,
+					content: uploadType === 'image' ? res.url : file.name,
+					metadata,
+					type: messageType,
+				},
 			})
+
+			// wsService.socket.emit('message', {
+			// 	type: 'chat',
+			// 	message: {
+			// 		tempId,
+			// 		chatId,
+			// 		receiverId,
+			// 		content,
+			// 		type: MessageType.TEXT,
+			// 	},
+			// })
 
 			return true
 		} catch (error) {
