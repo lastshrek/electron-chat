@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:28:39
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-03-01 23:08:40
+ * @LastEditTime : 2025-03-02 00:05:41
  * @FilePath     : /src/views/Home/Home.vue
  * @Description  : 
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -23,12 +23,34 @@
 					/>
 					<Search class="w-4 h-4 text-gray-400 absolute left-2.5 top-2" />
 				</div>
-				<button
-					class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
-					@click="handleNewChat"
-				>
-					<Plus class="w-5 h-5 text-gray-600" />
-				</button>
+
+				<!-- 使用 DropdownMenu 替换原来的按钮 -->
+				<DropdownMenu>
+					<DropdownMenuTrigger>
+						<button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors">
+							<Plus class="w-5 h-5 text-gray-600" />
+						</button>
+					</DropdownMenuTrigger>
+
+					<DropdownMenuContent align="end" class="w-48">
+						<DropdownMenuItem @click="handleNewPrivateChat">
+							<UserPlus class="mr-2 h-4 w-4" />
+							<span>发起私聊</span>
+						</DropdownMenuItem>
+
+						<DropdownMenuItem @click="showCreateGroupDialog = true">
+							<Users class="mr-2 h-4 w-4" />
+							<span>创建群聊</span>
+						</DropdownMenuItem>
+
+						<DropdownMenuSeparator />
+
+						<DropdownMenuItem @click="handleImportChat">
+							<FolderInput class="mr-2 h-4 w-4" />
+							<span>导入聊天记录</span>
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
 			</div>
 
 			<!-- 会话列表 -->
@@ -301,6 +323,9 @@
 			</div>
 		</div>
 	</div>
+
+	<!-- 添加创建群聊弹出框 -->
+	<CreateGroupDialog v-model:open="showCreateGroupDialog" />
 </template>
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, nextTick, onUnmounted } from 'vue'
@@ -335,6 +360,9 @@ import {
 	Send,
 	Download,
 	FileText,
+	UserPlus,
+	Users,
+	FolderInput,
 } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { ChatTypingManager } from '@/utils/chat-typing'
@@ -355,6 +383,14 @@ import TextMessage from '@/components/chat/messages/TextMessage.vue'
 import FileMessage from '@/components/chat/messages/FileMessage.vue'
 import ImageMessage from '@/components/chat/messages/ImageMessage.vue'
 import VoiceMessage from '@/components/chat/messages/VoiceMessage.vue'
+import {
+	DropdownMenu,
+	DropdownMenuTrigger,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu'
+import CreateGroupDialog from '@/components/dialogs/CreateGroupDialog.vue'
 
 const TAG = '🏠️ Home:'
 const userStore = useUserStore()
@@ -388,9 +424,7 @@ const participantsCache = ref(new Map<number, Array<ChatParticipant>>())
 // 修改获取其他参与者的方法
 const getOtherParticipant = async (chat: ChatInfo) => {
 	if (!userStore.userInfo) return null
-
 	const otherParticipant = chat.participants.find(p => p.id !== userStore.userInfo?.id)
-
 	return otherParticipant || null
 }
 
@@ -835,9 +869,18 @@ const filteredChats = computed(() => {
 	})
 })
 
-// 新建聊天的处理方法
-const handleNewChat = () => {
+// 发起私聊
+const handleNewPrivateChat = () => {
 	router.push('/contacts')
+}
+
+// 创建群聊
+const showCreateGroupDialog = ref(false)
+
+// 导入聊天记录
+const handleImportChat = () => {
+	// TODO: 实现导入聊天记录功能
+	console.log('导入聊天记录')
 }
 
 // 添加处理函数

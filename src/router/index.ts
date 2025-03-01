@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:28:07
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-25 21:10:31
+ * @LastEditTime : 2025-03-02 00:12:27
  * @FilePath     : /src/router/index.ts
  * @Description  : router index
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -150,6 +150,15 @@ const routes: RouteRecordRaw[] = [
 		meta: {
 			requiresAuth: true,
 			layout: 'main',
+		},
+	},
+	{
+		path: '/contacts/group/new',
+		name: 'NewGroup',
+		component: () => import('@/views/Contacts/NewGroup.vue'),
+		meta: {
+			requiresAuth: true,
+			title: '创建群聊',
 		},
 	},
 	{
