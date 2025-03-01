@@ -271,7 +271,8 @@
 
 			<!-- 输入区域 -->
 			<div class="border-t p-4 bg-white">
-				<div class="flex items-end gap-2">
+				<div class="flex items-center gap-2">
+					<!-- 消息输入框 -->
 					<textarea
 						v-model="message"
 						rows="1"
@@ -281,13 +282,26 @@
 						@keydown.enter.exact.prevent="sendMessage"
 						@blur="handleStopTyping"
 					/>
+
+					<!-- 附件按钮 -->
 					<button
-						class="px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+						class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+						@click="triggerFileInput"
+					>
+						<Paperclip class="w-5 h-5" />
+					</button>
+
+					<!-- 发送按钮 -->
+					<button
+						class="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
 						:disabled="!message.trim()"
 						@click="sendMessage"
 					>
-						发送
+						<Send class="w-5 h-5" />
 					</button>
+
+					<!-- 隐藏的文件输入框 -->
+					<input type="file" ref="fileInput" class="hidden" @change="handleFileUpload" />
 				</div>
 			</div>
 		</div>
@@ -323,6 +337,7 @@ import {
 	CheckSquare,
 	Copy,
 	RotateCcw,
+	Send,
 } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { ChatTypingManager } from '@/utils/chat-typing'
@@ -829,6 +844,15 @@ const handleRecallMessage = async (messageId: number) => {
 
 const handleDeleteMessage = async (messageId: number) => {
 	console.log('删除消息:', messageId)
+}
+
+// 添加一个新的方法来触发文件输入
+const triggerFileInput = () => {
+	const input = document.createElement('input')
+	input.type = 'file'
+	input.accept = 'image/*,video/*,audio/*,application/pdf'
+	input.onchange = handleFileUpload
+	input.click()
 }
 </script>
 
