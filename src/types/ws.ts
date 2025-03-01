@@ -1,3 +1,5 @@
+import { Message } from './message'
+
 // WebSocket 事件类型枚举
 export enum WebSocketEvent {
 	// 连接相关
@@ -6,8 +8,9 @@ export enum WebSocketEvent {
 	CONNECT_ERROR = 'connect_error',
 
 	// 聊天相关
-	NEW_MESSAGE = 'message',
+	NEW_MESSAGE = 'new_message',
 	CHAT_MESSAGE = 'chat_message',
+
 	TYPING = 'typing',
 	STOP_TYPING = 'stopTyping',
 
@@ -22,14 +25,14 @@ export enum WebSocketEvent {
 	NOTIFICATION = 'notification',
 
 	// 消息发送状态
-	MESSAGE_SENT = 'messageSent',
-	MESSAGE_DELIVERED = 'messageDelivered',
-	MESSAGE_READ = 'messageRead',
-	MESSAGE_ERROR = 'messageError',
+	MESSAGE_SENT = 'message_sent',
+	MESSAGE_DELIVERED = 'message_delivered',
+	MESSAGE_READ = 'message_read',
+	MESSAGE_ERROR = 'message_error',
 
 	// 新添加的事件类型
-	USER_TYPING = 'userTyping',
-	USER_STOP_TYPING = 'userStopTyping',
+	USER_TYPING = 'typing',
+	USER_STOP_TYPING = 'stop_typing',
 
 	// 新添加的事件类型
 	JOIN_CHAT = 'join',
@@ -78,23 +81,7 @@ export interface FriendRequestData {
 				username: string
 				avatar: string
 			}>
-			lastMessage?: {
-				id: number
-				content: string
-				type: string
-				status: string
-				timestamp: string
-				sender: {
-					id: number
-					username: string
-					avatar: string
-				}
-				receiver: {
-					id: number
-					username: string
-					avatar: string
-				}
-			}
+			lastMessage?: Message
 		}
 	}
 	timestamp: string
@@ -110,20 +97,7 @@ export interface FriendStatusData {
 // 聊天消息
 export interface ChatMessageData {
 	type: string
-	data: {
-		id: number
-		content: string
-		type: string
-		status: string
-		metadata: Record<string, any> | null
-		createdAt: string
-		updatedAt: string
-		senderId: number
-		receiverId: number
-		chatId: number
-		sender: UserInfo
-		receiver: UserInfo
-	}
+	data: Message
 	timestamp: string
 }
 
@@ -144,31 +118,29 @@ export interface MessageDeliveredResponse {
 
 // 更新消息发送成功响应类型
 export interface MessageSentResponse {
-	type: 'messageSent'
+	type: WebSocketEvent.MESSAGE_SENT
 	data: {
-		tempId: number
-		message: {
+		id: number
+		chatId: number
+		senderId: number
+		receiverId: number
+		type: string
+		content: string
+		status: string
+		createdAt: string
+		sender: {
 			id: number
-			chatId: number
-			senderId: number
-			receiverId: number
-			type: string
-			content: string
-			status: string
-			createdAt: string
-			sender: {
-				id: number
-				username: string
-				avatar: string
-			}
-			receiver: {
-				id: number
-				username: string
-				avatar: string
-			}
+			username: string
+			avatar: string
+		}
+		receiver: {
+			id: number
+			username: string
+			avatar: string
 		}
 	}
 	timestamp: string
+	tempId: number
 }
 
 // 添加类型定义

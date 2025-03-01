@@ -4,6 +4,8 @@ import { useUserStore } from '@/stores/user'
 import { io } from 'socket.io-client'
 import { chatApi } from '@/api/chat'
 import { awaitTo } from '@/utils/await'
+import { MessageStatus, MessageType } from '@/types/message'
+import { Message } from '@/types/message'
 
 export interface ChatInfo {
 	id: number
@@ -14,18 +16,7 @@ export interface ChatInfo {
 		username: string
 		avatar: string
 	}>
-	lastMessage?: {
-		id: number
-		content: string
-		type: string
-		status: string
-		createdAt: string
-		sender: {
-			id: number
-			username: string
-			avatar: string
-		}
-	}
+	lastMessage?: Message
 	unreadCount: number
 	otherUser?: {
 		id: number
@@ -139,10 +130,13 @@ export const useChatStore = defineStore('chat', {
 			}
 		},
 
-		updateLastMessage(chatId: number, message: ChatInfo['lastMessage']) {
+		updateLastMessage(chatId: number, message: Partial<Message>) {
 			const chat = this.chats.get(chatId)
 			if (chat) {
-				chat.lastMessage = message
+				chat.lastMessage = {
+					...chat.lastMessage,
+					...message,
+				} as Message
 			}
 		},
 
@@ -187,16 +181,7 @@ export const useChatStore = defineStore('chat', {
 						name: chat.name,
 						type: chat.type,
 						participants: chat.participants,
-						lastMessage: chat.lastMessage
-							? {
-									id: chat.lastMessage.id,
-									content: chat.lastMessage.content,
-									type: chat.lastMessage.type,
-									status: chat.lastMessage.status,
-									createdAt: chat.lastMessage.createdAt,
-									sender: chat.lastMessage.sender,
-							  }
-							: undefined,
+						lastMessage: chat.lastMessage || undefined,
 						unreadCount: chat.unreadCount,
 						otherUser: chat.otherUser,
 					})
@@ -204,6 +189,13 @@ export const useChatStore = defineStore('chat', {
 			} catch (error) {
 				console.error('加载聊天列表失败:', error)
 				throw error
+			}
+		},
+
+		updateLastMessageStatus(chatId: number, status: MessageStatus) {
+			const chat = this.chats.get(chatId)
+			if (chat?.lastMessage) {
+				chat.lastMessage.status = status
 			}
 		},
 	},

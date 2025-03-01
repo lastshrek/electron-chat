@@ -12,7 +12,6 @@ interface TypingStatus {
 }
 
 export class ChatTypingManager extends EventEmitter {
-	private socket: Socket
 	private typingUsers = new Map<string, TypingStatus>()
 	private typingTimeout: number = 3000 // 3秒无输入则视为停止输入
 	private debounceTime: number = 300 // 防抖时间
@@ -73,7 +72,6 @@ export class ChatTypingManager extends EventEmitter {
 			clearTimeout(this.typingTimeouts.get(key)!)
 		}
 
-		console.log('发送正在输入状态:', { chatId, userId })
 		this.wsService.sendTypingStatus(chatId, userId, true)
 
 		const timeout = setTimeout(() => {
@@ -91,7 +89,6 @@ export class ChatTypingManager extends EventEmitter {
 			this.typingTimeouts.delete(key)
 		}
 
-		console.log('发送停止输入状态:', { chatId, userId })
 		this.wsService.sendTypingStatus(chatId, userId, false)
 	}
 

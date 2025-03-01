@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:08:47
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-28 22:19:50
+ * @LastEditTime : 2025-03-01 14:46:40
  * @FilePath     : /src/views/Contacts/Contacts.vue
  * @Description  : Contacts page
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -485,7 +485,6 @@ onUnmounted(() => {
 
 // 切换分组展开状态
 const toggleGroup = (group: ContactGroup) => {
-	console.log('切换分组状态:', group.id, group.expanded)
 	group.expanded = !group.expanded
 }
 

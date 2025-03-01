@@ -1,11 +1,10 @@
 // 消息类型枚举
 export enum MessageType {
 	TEXT = 'TEXT',
-	VOICE = 'VOICE',
-	FILE = 'FILE',
-	LINK = 'LINK',
 	IMAGE = 'IMAGE',
+	VOICE = 'VOICE',
 	VIDEO = 'VIDEO',
+	FILE = 'FILE',
 }
 
 // 消息状态枚举
@@ -87,18 +86,28 @@ export interface MessageReadDto {
 	messageIds: number[]
 }
 
+export interface MessageMetadata {
+	fileName?: string
+	fileSize?: number
+	mimeType?: string
+	url?: string
+	thumbnail?: string
+	width?: number
+	height?: number
+	previewUrl?: string // 添加预览URL字段
+}
+
 export interface Message {
 	id: number
-	content: string
-	type: MessageType
-	status: MessageStatus
-	senderId: number
-	receiverId: number
 	chatId: number
+	receiverId: number
+	senderId: number
+	type: MessageType
+	content: string
+	status: MessageStatus
 	createdAt: string
 	updatedAt: string
-	metadata?: Record<string, any>
-	// 添加发送者和接收者信息
+	metadata?: MessageMetadata
 	sender?: {
 		id: number
 		username: string

@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:28:39
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-02-28 22:24:10
+ * @LastEditTime : 2025-03-01 14:46:48
  * @FilePath     : /src/views/Home/Home.vue
  * @Description  : 
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -171,7 +171,9 @@
 										<div
 											class="rounded-2xl px-4 py-2 shadow-sm"
 											:class="[
-												message.senderId === userStore.userInfo?.id
+												message.type === 'IMAGE'
+													? 'p-0 bg-transparent shadow-none'
+													: message.senderId === userStore.userInfo?.id
 													? 'bg-blue-500 text-white'
 													: 'bg-white text-gray-900',
 											]"
@@ -182,12 +184,47 @@
 											</p>
 
 											<!-- 图片消息 -->
-											<img
-												v-else-if="message.type === 'IMAGE'"
-												:src="message.content"
-												class="max-w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-												@click="previewImage(message.content)"
-											/>
+											<template v-if="message.type === 'IMAGE'">
+												<div class="relative group">
+													<!-- 图片预览 -->
+													<img
+														:src="message.metadata?.thumbnail || message.content"
+														class="max-w-[240px] max-h-[320px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+														:style="{
+															width: message.metadata?.width ? Math.min(message.metadata.width, 240) + 'px' : 'auto',
+															height: message.metadata?.height ? Math.min(message.metadata.height, 320) + 'px' : 'auto',
+														}"
+														@click="handlePreviewImage(message.metadata?.url || message.content)"
+													/>
+
+													<!-- 加载中状态 -->
+													<div
+														v-if="message.status === 'SENDING'"
+														class="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg"
+													>
+														<Loader2Icon class="w-6 h-6 text-white animate-spin" />
+													</div>
+
+													<!-- 失败状态 -->
+													<div
+														v-if="message.status === 'FAILED'"
+														class="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg"
+													>
+														<AlertCircle class="w-6 h-6 text-red-500" />
+													</div>
+
+													<!-- 图片操作按钮 -->
+													<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+														<!-- 下载按钮 -->
+														<button
+															class="p-1.5 bg-black/50 hover:bg-black/70 rounded-full text-white transition-colors"
+															@click.stop="handleDownloadFile(message.metadata?.url || message.content)"
+														>
+															<Download class="w-4 h-4" />
+														</button>
+													</div>
+												</div>
+											</template>
 
 											<!-- 文件消息 -->
 											<div
@@ -338,6 +375,7 @@ import {
 	Copy,
 	RotateCcw,
 	Send,
+	Download,
 } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { ChatTypingManager } from '@/utils/chat-typing'
@@ -366,7 +404,6 @@ const router = useRouter()
 const messageGroups = computed(() => {
 	if (!selectedChat.value) return []
 	const messages = messageStore.getMessagesByChat(selectedChat.value.id)
-	console.log('Current messages:', messages)
 	return messages
 })
 
@@ -490,7 +527,6 @@ const loadMessagesAround = async (chatId: number, messageId: number) => {
 
 		// 调用API获取消息周围的消息
 		const response = await messageService.getMessagesAround(chatId, messageId)
-		console.log('加载前20条消息的消息:', response)
 		// 更新消息存储
 		if (response) {
 			messageStore.setMessages(chatId, response.messages)
@@ -633,18 +669,12 @@ const handleFileUpload = async (event: Event) => {
 		return
 	}
 
-	let success = false
-	if (file.type.startsWith('image/')) {
-		success = await messageService.sendImageMessage(selectedChat.value.id, otherParticipant.id, file)
-	} else {
-		success = await messageService.sendFileMessage(selectedChat.value.id, otherParticipant.id, file)
-	}
+	const success = await messageService.sendFileMessage(selectedChat.value.id, otherParticipant.id, file)
 
 	if (!success) {
 		toastService.error('发送失败', '请稍后重试')
 	}
 
-	// 清除input的值，允许重复上传相同文件
 	input.value = ''
 }
 
@@ -667,7 +697,6 @@ const scrollToBottom = () => {
 watch(
 	messageGroups,
 	newMessages => {
-		console.log('Messages updated:', newMessages)
 		nextTick(() => {
 			scrollToBottom()
 		})
@@ -757,13 +786,10 @@ const getTypingUserAvatar = () => {
 watch(typingManager, newManager => {
 	if (newManager) {
 		newManager.on('typingStatusChanged', ({ chatId, userId, typing }: TypingStatusEvent) => {
-			console.log('打字状态变化:', { chatId, userId, typing, selectedChatId: selectedChat.value?.id })
 			if (selectedChat.value?.id === chatId && userId !== userStore.userInfo?.id) {
 				if (typing && !typingUsers.value.includes(userId)) {
-					console.log('添加打字用户:', userId)
 					typingUsers.value.push(userId)
 				} else if (!typing) {
-					console.log('移除打字用户:', userId)
 					typingUsers.value = typingUsers.value.filter(id => id !== userId)
 				}
 			}
@@ -780,7 +806,6 @@ const clearTypingUsers = () => {
 watch(
 	() => selectedChat.value,
 	() => {
-		console.log('聊天切换，清除打字用户')
 		clearTypingUsers()
 	}
 )
@@ -853,6 +878,20 @@ const triggerFileInput = () => {
 	input.accept = 'image/*,video/*,audio/*,application/pdf'
 	input.onchange = handleFileUpload
 	input.click()
+}
+
+// 下载文件和图片通用的处理函数
+const handleDownloadFile = async (fileUrl: string) => {
+	const success = await messageService.downloadFile(fileUrl)
+	if (!success) {
+		toastService.error('下载失败', '请稍后重试')
+	}
+}
+
+// 图片预览
+const handlePreviewImage = (imageUrl: string) => {
+	// TODO: 实现图片预览功能，可以使用第三方库如 viewerjs
+	window.open(imageUrl, '_blank')
 }
 </script>
 

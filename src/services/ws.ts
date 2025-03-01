@@ -15,7 +15,7 @@ import { eventBus } from '@/utils/eventBus'
 import { ChatInfo, useChatStore } from '@/stores/chat'
 import router from '@/router' // 直接导入 router 实例
 import { useMessageStore } from '@/stores/message'
-import { MessageStatus } from '@/types/message'
+import { MessageStatus, MessageType } from '@/types/message'
 
 const WS_URL = import.meta.env.VITE_WS_URL
 export class WebSocketService {
@@ -63,11 +63,6 @@ export class WebSocketService {
 		if (!this.socket) return
 		const userStore = useUserStore()
 
-		// 添加通用事件监听器，捕获所有事件
-		this.socket.onAny((event, ...args) => {
-			console.log(`收到事件 ${event}:`, args)
-		})
-
 		// 连接相关事件
 		this.socket.on(WebSocketEvent.CONNECT, () => {
 			console.log('WebSocket 连接成功，socket ID:', this.socket?.id)
@@ -106,12 +101,10 @@ export class WebSocketService {
 		})
 
 		this.socket.on(WebSocketEvent.FRIEND_ONLINE, (data: FriendStatusData) => {
-			console.log('Friend online:', data)
 			// TODO: 更新好友状态
 		})
 
 		this.socket.on(WebSocketEvent.FRIEND_OFFLINE, (data: FriendStatusData) => {
-			console.log('Friend offline:', data)
 			// TODO: 更新好友状态
 		})
 
@@ -133,12 +126,13 @@ export class WebSocketService {
 			messageStore.addMessage({
 				id: data.id,
 				content: data.content,
-				type: data.type,
+				type: data.type as MessageType,
 				status: data.status.toUpperCase() as MessageStatus,
 				senderId: data.senderId,
 				receiverId: data.receiverId,
 				chatId: data.chatId,
-				timestamp: data.createdAt,
+				createdAt: data.createdAt,
+				updatedAt: data.updatedAt,
 				metadata: data.metadata || undefined,
 				sender: data.sender,
 				receiver: data.receiver,
@@ -154,9 +148,9 @@ export class WebSocketService {
 				chat.lastMessage = {
 					id: data.id,
 					content: data.content,
-					type: data.type,
-					status: data.status,
-					timestamp: data.createdAt,
+					type: data.type as MessageType,
+					status: data.status as MessageStatus,
+					createdAt: data.createdAt,
 					sender: data.sender,
 					receiver: data.receiver,
 				}
@@ -199,24 +193,24 @@ export class WebSocketService {
 			const { data } = response
 
 			// 更新消息状态
-			messageStore.updateMessageStatus(data.tempId, 'SENT')
+			messageStore.updateMessageStatus(response.tempId, MessageStatus.SENT)
 
 			// 更新消息ID和其他信息
-			messageStore.updateMessage(data.tempId, {
-				id: data.message.id,
-				status: data.message.status.toUpperCase() as MessageStatus,
-				timestamp: data.message.createdAt,
+			messageStore.updateMessage(response.tempId, {
+				id: data.id,
+				status: data.status.toUpperCase() as MessageStatus,
+				createdAt: data.createdAt,
 			})
 
 			// 更新聊天列表的最后一条消息
-			chatStore.updateLastMessage(data.message.chatId, {
-				id: data.message.id,
-				content: data.message.content,
-				type: data.message.type,
-				status: data.message.status,
-				timestamp: data.message.createdAt,
-				sender: data.message.sender,
-				receiver: data.message.receiver,
+			chatStore.updateLastMessage(data.chatId, {
+				id: data.id,
+				content: data.content,
+				type: data.type as MessageType,
+				status: data.status as MessageStatus,
+				createdAt: data.createdAt,
+				sender: data.sender,
+				receiver: data.receiver,
 			})
 		})
 
@@ -227,11 +221,11 @@ export class WebSocketService {
 
 			// 如果有临时ID，先用临时ID更新状态
 			if (data.tempId) {
-				messageStore.updateMessageStatus(data.tempId, 'DELIVERED')
+				messageStore.updateMessageStatus(data.tempId, MessageStatus.DELIVERED)
 			}
 
 			// 然后用真实ID更新状态
-			messageStore.updateMessageStatus(data.messageId, 'DELIVERED')
+			messageStore.updateMessageStatus(data.messageId, MessageStatus.DELIVERED)
 
 			// 更新消息ID（从临时ID到真实ID）
 			if (data.tempId) {
@@ -245,7 +239,7 @@ export class WebSocketService {
 			const messageStore = useMessageStore()
 
 			// 更新消息状态为失败
-			messageStore.updateMessageStatus(data.tempId, 'FAILED')
+			messageStore.updateMessageStatus(data.tempId, MessageStatus.FAILED)
 
 			// 显示错误提示
 			toastService.error('发送失败', data.error || '请稍后重试')
@@ -310,27 +304,26 @@ export class WebSocketService {
 
 			// 更新消息ID和其他信息
 			messageStore.updateMessage(data.data.tempId, {
-				id: data.data.message.id,
-				status: data.data.message.status,
-				createdAt: data.data.message.createdAt,
-				updatedAt: data.data.message.updatedAt,
+				id: data.data.id,
+				status: data.data.status,
+				createdAt: data.data.createdAt,
+				updatedAt: data.data.updatedAt,
 			})
 
 			// 更新聊天列表的最后一条消息
-			chatStore.updateLastMessage(data.data.message.chatId, {
-				id: data.data.message.id,
-				content: data.data.message.content,
-				type: data.data.message.type,
-				status: data.data.message.status,
-				createdAt: data.data.message.createdAt,
-				sender: data.data.message.sender,
-				receiver: data.data.message.receiver,
+			chatStore.updateLastMessage(data.data.chatId, {
+				id: data.data.id,
+				content: data.data.content,
+				type: data.data.type,
+				status: data.data.status,
+				createdAt: data.data.createdAt,
+				sender: data.data.sender,
+				receiver: data.data.receiver,
 			})
 		})
 
 		// 监听消息事件 - 接收其他用户发送的消息
 		this.socket.on('message', (response: any) => {
-			console.log('收到原始消息事件数据:', JSON.stringify(response))
 			console.log('收到消息事件:', response)
 
 			const messageStore = useMessageStore()
@@ -375,9 +368,9 @@ export class WebSocketService {
 				chat.lastMessage = {
 					id: response.data.id,
 					content: response.data.content,
-					type: response.data.type,
-					status: response.data.status,
-					timestamp: response.data.createdAt,
+					type: response.data.type as MessageType,
+					status: response.data.status as MessageStatus,
+					createdAt: response.data.createdAt,
 					sender: response.data.sender,
 					receiver: response.data.receiver,
 				}
@@ -474,8 +467,7 @@ export class WebSocketService {
 			return
 		}
 
-		console.log(`发送${isTyping ? '正在输入' : '停止输入'}状态:`, { chatId, userId })
-		const event = isTyping ? WebSocketEvent.TYPING : WebSocketEvent.STOP_TYPING
+		const event = isTyping ? WebSocketEvent.USER_TYPING : WebSocketEvent.USER_STOP_TYPING
 		this.socket.emit(event, { chatId, userId })
 	}
 
@@ -484,7 +476,6 @@ export class WebSocketService {
 			console.error('Socket.IO is not connected')
 			return
 		}
-		console.log('尝试加入聊天室:', chatId)
 		this.socket.emit(WebSocketEvent.JOIN_CHAT, chatId)
 
 		// 添加确认回调

@@ -6,6 +6,8 @@ import { useUserStore } from '@/stores/user'
 import { useChatStore } from '@/stores/chat'
 import { MessageStatus } from '@/types/message'
 import request from '@/utils/request'
+import { chatApi } from '@/api/chat'
+import type { Message, MessageMetadata } from '@/types/message'
 
 class MessageService {
 	// 发送文本消息
@@ -63,18 +65,7 @@ class MessageService {
 					chatId,
 					receiverId,
 					content,
-					type: 'TEXT',
-				},
-			})
-
-			console.log('消息已发送到服务器:', {
-				type: 'chat',
-				message: {
-					tempId,
-					chatId,
-					receiverId,
-					content,
-					type: 'TEXT',
+					type: MessageType.TEXT,
 				},
 			})
 
@@ -129,35 +120,104 @@ class MessageService {
 	// 发送文件消息
 	async sendFileMessage(chatId: number, receiverId: number, file: File) {
 		if (!wsService.socket?.connected) {
+			console.error('WebSocket is not connected')
 			return false
 		}
-		const formData = new FormData()
-		formData.append('file', file)
+
+		const messageStore = useMessageStore()
+		const userStore = useUserStore()
+
+		// 生成临时消息ID
+		const tempId = Date.now()
 
 		try {
-			// TODO: 实现文件上传API
-			const response = await fetch('/api/upload', {
-				method: 'POST',
-				body: formData,
+			// 根据文件类型确定上传类型和消息类型
+			let uploadType: 'image' | 'voice' | 'video' | 'file'
+			let messageType: MessageType
+			if (file.type.startsWith('image/')) {
+				uploadType = 'image'
+				messageType = MessageType.IMAGE
+			} else if (file.type.startsWith('audio/')) {
+				uploadType = 'voice'
+				messageType = MessageType.VOICE
+			} else if (file.type.startsWith('video/')) {
+				uploadType = 'video'
+				messageType = MessageType.VIDEO
+			} else {
+				uploadType = 'file'
+				messageType = MessageType.FILE
+			}
+
+			// 如果是图片，先转换为 base64
+			let previewUrl = ''
+			if (uploadType === 'image') {
+				previewUrl = await new Promise<string>(resolve => {
+					const reader = new FileReader()
+					reader.onload = () => resolve(reader.result as string)
+					reader.readAsDataURL(file)
+				})
+			}
+
+			// 创建临时消息
+			const tempMessage: Message = {
+				id: tempId,
+				chatId,
+				receiverId,
+				senderId: userStore.userInfo!.id,
+				type: messageType,
+				content: uploadType === 'image' ? previewUrl : file.name,
+				status: MessageStatus.SENDING,
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+				sender: {
+					id: userStore.userInfo!.id,
+					username: userStore.userInfo!.username,
+					avatar: userStore.userInfo!.avatar || '',
+				},
+				metadata: {
+					fileName: file.name,
+					fileSize: file.size,
+					mimeType: file.type,
+					previewUrl: uploadType === 'image' ? previewUrl : undefined,
+				},
+			}
+
+			// 添加临时消息到消息列表
+			messageStore.addMessage(tempMessage)
+
+			// 上传文件
+			const res = await chatApi.uploadFile(file, uploadType)
+
+			// 构建消息元数据
+			const metadata: MessageMetadata = {
+				fileName: file.name,
+				fileSize: file.size,
+				mimeType: file.type,
+				url: res.url,
+			}
+
+			// 如果是图片，添加额外的元数据
+			if (uploadType === 'image' && res.thumbnail) {
+				metadata.thumbnail = res.thumbnail
+				metadata.width = res.width
+				metadata.height = res.height
+			}
+
+			// 通过 WebSocket 发送消息
+			wsService.socket.emit('message', {
+				tempId,
+				type: messageType,
+				chatId,
+				receiverId,
+				content: uploadType === 'image' ? res.url : file.name,
+				metadata,
 			})
-			const { url } = await response.json()
 
-			// const message: BaseMessageDto = {
-			// 	chatId,
-			// 	receiverId,
-			// 	type: MessageType.FILE,
-			// 	content: url,
-			// 	metadata: {
-			// fileName: file.name,
-			// fileSize: file.size,
-			// mimeType: file.type,
-			// },
-			// }
-
-			// wsService.socket.emit('message', message)
 			return true
 		} catch (error) {
-			console.error('发送文件失败:', error)
+			console.error('发送文件消息失败:', error)
+			// 更新临时消息状态为失败
+			messageStore.updateMessageStatus(tempId, MessageStatus.FAILED)
 			return false
 		}
 	}
@@ -201,6 +261,26 @@ class MessageService {
 		} catch (error) {
 			console.error('获取消息周围的消息失败:', error)
 			throw error
+		}
+	}
+
+	async downloadFile(fileUrl: string) {
+		try {
+			const blob = await chatApi.downloadFile(fileUrl)
+			const url = window.URL.createObjectURL(blob)
+
+			const a = document.createElement('a')
+			a.href = url
+			a.download = fileUrl.split('/').pop() || 'download'
+			document.body.appendChild(a)
+			a.click()
+			document.body.removeChild(a)
+			window.URL.revokeObjectURL(url)
+
+			return true
+		} catch (error) {
+			console.error('下载文件失败:', error)
+			return false
 		}
 	}
 }

@@ -3,28 +3,6 @@ import type { Message } from '@/types/message'
 import { MessageStatus } from '@/types/message'
 import { messageService } from '@/services/message'
 
-export interface Message {
-	id: number
-	content: string
-	type: string
-	status: 'SENDING' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED'
-	senderId: number
-	receiverId: number
-	chatId: number
-	timestamp: string
-	metadata?: Record<string, any>
-	sender?: {
-		id: number
-		username: string
-		avatar: string
-	}
-	receiver?: {
-		id: number
-		username: string
-		avatar: string
-	}
-}
-
 export const useMessageStore = defineStore('message', {
 	state: () => ({
 		messages: new Map<number, Message[]>(),
@@ -32,8 +10,6 @@ export const useMessageStore = defineStore('message', {
 
 	actions: {
 		addMessage(message: Message) {
-			console.log('Adding message:', message)
-
 			// 确保消息有chatId
 			if (!message.chatId) {
 				console.error('消息缺少chatId:', message)
@@ -52,8 +28,6 @@ export const useMessageStore = defineStore('message', {
 			// 添加新消息
 			chatMessages.push(message)
 			this.messages.set(message.chatId, chatMessages)
-
-			console.log('Updated messages for chat:', message.chatId, this.messages.get(message.chatId)?.length)
 		},
 
 		getMessagesByChat(chatId: number): Message[] {
