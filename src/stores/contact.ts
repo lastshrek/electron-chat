@@ -15,6 +15,7 @@ export const useContactStore = defineStore('contact', () => {
 
 		try {
 			const response = await authApi.getFriends()
+			console.log('获取联系人', response)
 			contacts.value = response
 		} catch (err) {
 			console.error('获取联系人列表失败:', err)

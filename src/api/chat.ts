@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import type { ChatInfo } from '@/stores/chat'
 
 export const chatApi = {
 	/**
@@ -64,5 +65,12 @@ export const chatApi = {
 			responseType: 'blob',
 		})
 		return response.data
+	},
+	/**
+	 * @description: 创建群聊
+	 * @param {object} groupInfo 群聊信息
+	 */
+	createGroupChat(groupInfo: { name: string; memberIds: number[] }): Promise<ChatInfo> {
+		return request.post('/group-chats', groupInfo)
 	},
 }

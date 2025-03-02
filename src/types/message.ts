@@ -5,6 +5,7 @@ export enum MessageType {
 	VOICE = 'VOICE',
 	VIDEO = 'VIDEO',
 	FILE = 'FILE',
+	SYSTEM = 'SYSTEM', // 添加系统消息类型
 }
 
 // 消息状态枚举

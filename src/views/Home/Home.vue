@@ -2,7 +2,7 @@
  * @Author       : lastshrek
  * @Date         : 2025-02-19 19:28:39
  * @LastEditors  : lastshrek
- * @LastEditTime : 2025-03-02 00:05:41
+ * @LastEditTime : 2025-03-02 22:09:48
  * @FilePath     : /src/views/Home/Home.vue
  * @Description  : 
  * Copyright 2025 lastshrek, All Rights Reserved.
@@ -33,11 +33,6 @@
 					</DropdownMenuTrigger>
 
 					<DropdownMenuContent align="end" class="w-48">
-						<DropdownMenuItem @click="handleNewPrivateChat">
-							<UserPlus class="mr-2 h-4 w-4" />
-							<span>发起私聊</span>
-						</DropdownMenuItem>
-
 						<DropdownMenuItem @click="showCreateGroupDialog = true">
 							<Users class="mr-2 h-4 w-4" />
 							<span>创建群聊</span>
@@ -47,101 +42,22 @@
 
 						<DropdownMenuItem @click="handleImportChat">
 							<FolderInput class="mr-2 h-4 w-4" />
-							<span>导入聊天记录</span>
+							<span>测试样式</span>
 						</DropdownMenuItem>
 					</DropdownMenuContent>
 				</DropdownMenu>
 			</div>
 
 			<!-- 会话列表 -->
-			<div class="flex-1 overflow-y-auto select-none">
-				<div v-if="filteredChats.length > 0">
-					<ContextMenu v-for="chat in filteredChats" :key="chat.id">
-						<ContextMenuTrigger>
-							<div
-								class="flex items-center p-4 cursor-pointer hover:bg-slate-100 transition-colors"
-								:class="{ 'bg-blue-50': selectedChat?.id === chat.id }"
-								@click="selectChat(chat)"
-							>
-								<!-- 头像 -->
-								<div class="relative">
-									<img
-										:src="chat.otherUser?.avatar || 'https://api.dicebear.com/7.x/initials/svg?seed=Group'"
-										:alt="chat.otherUser?.username || chat.name || '聊天'"
-										class="w-12 h-12 rounded-full object-cover"
-									/>
-									<!-- 未读消息提示 -->
-									<div
-										v-if="chat.unreadCount > 0"
-										class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
-									>
-										{{ chat.unreadCount > 99 ? '99+' : chat.unreadCount }}
-									</div>
-								</div>
-
-								<!-- 聊天信息 -->
-								<div class="ml-3 flex-1 min-w-0">
-									<div class="flex justify-between items-center">
-										<h3 class="font-medium text-sm truncate">
-											{{ chat.otherUser?.username || chat.name || '未命名聊天' }}
-										</h3>
-										<span class="text-xs text-gray-500">
-											{{ formatTime(chat.lastMessage?.createdAt) }}
-										</span>
-									</div>
-									<div class="flex justify-between items-center mt-1">
-										<p class="text-sm text-gray-500 truncate">
-											{{ getLastMessagePreview(chat.lastMessage) }}
-										</p>
-										<!-- 消息状态指示器 -->
-										<div
-											v-if="chat.lastMessage && chat.lastMessage.senderId === userStore.userInfo?.id"
-											class="ml-2 flex-shrink-0"
-										>
-											<Check v-if="chat.lastMessage.status === 'SENT'" class="w-4 h-4 text-gray-400" />
-											<CheckCheck v-else-if="chat.lastMessage.status === 'DELIVERED'" class="w-4 h-4 text-gray-400" />
-											<CheckCheck v-else-if="chat.lastMessage.status === 'READ'" class="w-4 h-4 text-blue-500" />
-											<AlertCircle v-else-if="chat.lastMessage.status === 'FAILED'" class="w-4 h-4 text-red-500" />
-										</div>
-									</div>
-								</div>
-							</div>
-						</ContextMenuTrigger>
-
-						<ContextMenuContent>
-							<ContextMenuItem @click="handleMarkAsRead(chat.id)">
-								<Reply class="mr-2 h-4 w-4" />
-								<span>标记为已读</span>
-							</ContextMenuItem>
-
-							<ContextMenuItem @click="handlePinChat(chat.id)">
-								<Forward class="mr-2 h-4 w-4" />
-								<span>置顶聊天</span>
-							</ContextMenuItem>
-
-							<ContextMenuItem @click="handleMultiSelect">
-								<CheckSquare class="mr-2 h-4 w-4" />
-								<span>多选</span>
-							</ContextMenuItem>
-
-							<ContextMenuSeparator />
-
-							<ContextMenuItem
-								@click="handleDeleteChat(chat.id)"
-								class="text-red-600 focus:text-red-600 focus:bg-red-50"
-							>
-								<Trash2 class="mr-2 h-4 w-4" />
-								<span>删除会话</span>
-							</ContextMenuItem>
-						</ContextMenuContent>
-					</ContextMenu>
-				</div>
-				<div v-else class="flex flex-col items-center justify-center h-full p-6 text-center select-none">
-					<MessageSquare class="w-12 h-12 text-gray-300 mb-4" />
-					<p class="text-gray-500">暂无聊天记录</p>
-					<p class="text-sm text-gray-400 mt-2">在联系人中选择好友开始聊天</p>
-				</div>
-			</div>
+			<ChatList
+				:chats="filteredChats"
+				:selected-chat-id="selectedChat?.id"
+				@select="selectChat"
+				@mark-as-read="handleMarkAsRead"
+				@pin-chat="handlePinChat"
+				@multi-select="handleMultiSelect"
+				@delete-chat="handleDeleteChat"
+			/>
 		</div>
 
 		<!-- 右侧聊天区域 -->
@@ -152,6 +68,15 @@
 					<h2 class="font-medium">{{ selectedChat?.otherUser?.username || selectedChat?.name }}</h2>
 					<TypingIndicator v-if="typingUsers.length > 0" :name="getTypingUserName()" :avatar="getTypingUserAvatar()" />
 				</div>
+
+				<!-- 添加更多操作按钮 -->
+				<button
+					v-if="selectedChat"
+					class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+					@click="showChatInfo = true"
+				>
+					<MoreVertical class="w-5 h-5 text-gray-500" />
+				</button>
 			</div>
 
 			<!-- 消息列表区域 -->
@@ -166,6 +91,7 @@
 
 					<!-- 消息气泡容器 -->
 					<div
+						v-if="message.type !== MessageType.SYSTEM"
 						class="flex items-start gap-2 px-2"
 						:class="message.senderId === userStore.userInfo?.id ? 'flex-row-reverse' : ''"
 					>
@@ -283,6 +209,11 @@
 							</ContextMenu>
 						</div>
 					</div>
+
+					<!-- 系统消息容器 -->
+					<div v-else class="px-2">
+						<SystemMessage :message="message" />
+					</div>
 				</template>
 			</div>
 
@@ -325,7 +256,10 @@
 	</div>
 
 	<!-- 添加创建群聊弹出框 -->
-	<CreateGroupDialog v-model:open="showCreateGroupDialog" />
+	<CreateGroupDialog v-model="showCreateGroupDialog" />
+
+	<!-- 添加抽屉组件 -->
+	<ChatInfoDrawer v-if="selectedChat" v-model="showChatInfo" :chat="selectedChat" />
 </template>
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, nextTick, onUnmounted } from 'vue'
@@ -339,11 +273,6 @@ import { messageService } from '@/services/message'
 import { toastService } from '@/services/toast'
 import {
 	Paperclip,
-	Loader2Icon,
-	CheckIcon,
-	CheckCheckIcon,
-	XIcon,
-	RefreshCwIcon,
 	MessageSquare,
 	Check,
 	CheckCheck,
@@ -358,11 +287,14 @@ import {
 	Copy,
 	RotateCcw,
 	Send,
-	Download,
-	FileText,
-	UserPlus,
 	Users,
 	FolderInput,
+	MoreVertical,
+	Settings,
+	LogOut,
+	User,
+	Eraser,
+	Ban,
 } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { ChatTypingManager } from '@/utils/chat-typing'
@@ -383,6 +315,8 @@ import TextMessage from '@/components/chat/messages/TextMessage.vue'
 import FileMessage from '@/components/chat/messages/FileMessage.vue'
 import ImageMessage from '@/components/chat/messages/ImageMessage.vue'
 import VoiceMessage from '@/components/chat/messages/VoiceMessage.vue'
+import SystemMessage from '@/components/chat/messages/SystemMessage.vue'
+
 import {
 	DropdownMenu,
 	DropdownMenuTrigger,
@@ -391,13 +325,13 @@ import {
 	DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import CreateGroupDialog from '@/components/dialogs/CreateGroupDialog.vue'
-
+import ChatList from '@/components/chat/ChatList.vue'
+import ChatInfoDrawer from '@/components/chat/ChatInfoDrawer.vue'
 const TAG = '🏠️ Home:'
 const userStore = useUserStore()
 const message = ref('')
-const selectedChat = ref<ChatInfo | null>(null)
 const chatStore = useChatStore()
-const { chats } = storeToRefs(chatStore)
+const { chats, selectedChat } = storeToRefs(chatStore)
 const messageStore = useMessageStore()
 const route = useRoute()
 const router = useRouter()
@@ -409,15 +343,10 @@ const messageGroups = computed(() => {
 })
 
 const messageList = ref<HTMLElement | null>(null)
-
 const typingUsers = ref<number[]>([])
 const typingManager = ref<ChatTypingManager | null>(null)
-
 // 加载状态
 const isLoadingMessages = ref(false)
-
-// 修改类型定义
-
 // 修改参与者缓存的类型
 const participantsCache = ref(new Map<number, Array<ChatParticipant>>())
 
@@ -473,7 +402,7 @@ onMounted(async () => {
 		const chatId = Number(route.params.chatId)
 		const chat = chats.value.get(chatId)
 		if (chat) {
-			selectedChat.value = chat
+			chatStore.setSelectedChat(chat)
 			chatStore.clearUnread(chat.id)
 			// 加入聊天室
 			wsService.joinChat(chat.id)
@@ -504,10 +433,11 @@ const clearParticipantCache = (chatId?: number) => {
 	}
 }
 
-// 选择聊天
+// 修改选择聊天的方法
 const selectChat = (chat: ChatInfo) => {
 	router.push(`/chat/${chat.id}`)
 	chatStore.clearUnread(chat.id)
+	chatStore.setSelectedChat(chat)
 
 	// 如果有最后一条消息，则获取该消息周围的消息
 	if (chat.lastMessage) {
@@ -545,7 +475,7 @@ watch(
 		if (chatId) {
 			const chat = chats.value.get(Number(chatId))
 			if (chat) {
-				selectedChat.value = chat
+				chatStore.setSelectedChat(chat)
 				chatStore.clearUnread(chat.id)
 				// 加入聊天室
 				wsService.joinChat(chat.id)
@@ -566,7 +496,7 @@ watch(
 				router.push('/')
 			}
 		} else {
-			selectedChat.value = null
+			chatStore.setSelectedChat(null)
 		}
 	},
 	{ immediate: true }
@@ -800,10 +730,10 @@ const chatsArray = computed(() => {
 
 // 获取正在输入的用户名
 const getTypingUserName = () => {
-	if (!typingUsers?.length) return ''
+	if (!typingUsers.value?.length) return ''
 
 	// 获取第一个正在输入的用户
-	const userId = typingUsers[0]
+	const userId = typingUsers.value[0]
 	console.log('获取打字用户名:', userId)
 
 	// 从参与者列表中查找用户
@@ -815,10 +745,10 @@ const getTypingUserName = () => {
 
 // 获取正在输入的用户头像
 const getTypingUserAvatar = () => {
-	if (!typingUsers?.length) return ''
+	if (!typingUsers.value?.length) return ''
 
 	// 获取第一个正在输入的用户
-	const userId = typingUsers[0]
+	const userId = typingUsers.value[0]
 	console.log('获取打字用户头像:', userId)
 
 	// 从参与者列表中查找用户
@@ -868,11 +798,6 @@ const filteredChats = computed(() => {
 		return name.includes(query) || lastMessage.includes(query)
 	})
 })
-
-// 发起私聊
-const handleNewPrivateChat = () => {
-	router.push('/contacts')
-}
 
 // 创建群聊
 const showCreateGroupDialog = ref(false)
@@ -1000,6 +925,17 @@ const formatFileSize = (bytes: number) => {
 
 	return `${size.toFixed(1)} ${units[unitIndex]}`
 }
+
+// 获取聊天名称
+const getChatName = (chat: ChatInfo) => {
+	if (chat.type === 'GROUP') {
+		return chat.name || '群聊'
+	}
+	return chat.otherUser?.username || '未命名聊天'
+}
+
+// 添加状态
+const showChatInfo = ref(false)
 </script>
 
 <style scoped>
@@ -1019,5 +955,49 @@ const formatFileSize = (bytes: number) => {
 
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
 	background-color: rgba(156, 163, 175, 0.8);
+}
+
+/* 修改群组头像样式 */
+.group-avatar {
+	position: relative;
+	width: 48px;
+	height: 48px;
+}
+
+/* 默认群组头像样式 */
+.group-avatar-default {
+	width: 100%;
+	height: 100%;
+	border-radius: 0.5rem;
+	object-fit: cover;
+}
+
+/* 头像堆叠效果样式保持不变 */
+.group-avatar img:nth-child(1) {
+	position: absolute;
+	top: 0;
+	left: 0;
+	z-index: 2;
+}
+
+.group-avatar img:nth-child(2) {
+	position: absolute;
+	bottom: 0;
+	right: 0;
+	z-index: 1;
+}
+
+/* 私聊头像样式 */
+.private-avatar {
+	width: 48px;
+	height: 48px;
+	border-radius: 50%;
+	overflow: hidden;
+}
+
+.private-avatar img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
 }
 </style>

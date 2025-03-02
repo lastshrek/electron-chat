@@ -6,24 +6,7 @@ import { chatApi } from '@/api/chat'
 import { awaitTo } from '@/utils/await'
 import { MessageStatus, MessageType } from '@/types/message'
 import { Message } from '@/types/message'
-
-export interface ChatInfo {
-	id: number
-	name: string | null
-	type: 'DIRECT' | 'GROUP'
-	participants: Array<{
-		id: number
-		username: string
-		avatar: string
-	}>
-	lastMessage?: Message
-	unreadCount: number
-	otherUser?: {
-		id: number
-		username: string
-		avatar: string
-	}
-}
+import type { ChatInfo } from './types'
 
 export const useChatStore = defineStore('chat', {
 	state: () => ({
@@ -31,7 +14,8 @@ export const useChatStore = defineStore('chat', {
 		connected: false,
 		chats: new Map<number, ChatInfo>(),
 		initialized: false,
-		_lastUnreadTotal: 0, // 添加一个内部状态来跟踪上一次的未读总数
+		_lastUnreadTotal: 0,
+		selectedChat: null as ChatInfo | null,
 	}),
 
 	getters: {
@@ -168,23 +152,15 @@ export const useChatStore = defineStore('chat', {
 				const [res] = await awaitTo(chatApi.getChats({ limit: 20, page: 1 }))
 
 				const chats = res
-
-				if (chats.chats.length === 0) return console.log('当前暂无聊天')
+				console.log('加载聊天列表', chats)
+				if (chats.length === 0) return console.log('当前暂无聊天')
 
 				// 清空现有聊天列表
 				this.chats.clear()
 
 				// 添加新的聊天
-				for (const chat of chats.chats) {
-					this.setChat({
-						id: chat.id,
-						name: chat.name,
-						type: chat.type,
-						participants: chat.participants,
-						lastMessage: chat.lastMessage || undefined,
-						unreadCount: chat.unreadCount,
-						otherUser: chat.otherUser,
-					})
+				for (const chat of chats) {
+					this.setChat(chat)
 				}
 			} catch (error) {
 				console.error('加载聊天列表失败:', error)
@@ -197,6 +173,38 @@ export const useChatStore = defineStore('chat', {
 			if (chat?.lastMessage) {
 				chat.lastMessage.status = status
 			}
+		},
+
+		async createGroupChat(groupInfo: { name: string; memberIds: number[] }) {
+			try {
+				const response = await chatApi.createGroupChat(groupInfo)
+				console.log('创建群聊响应', response)
+				// 确保响应数据符合预期类型
+				if (!response || typeof response.id !== 'number') {
+					throw new Error('创建群聊响应数据格式错误')
+				}
+
+				// 将响应数据转换为 ChatInfo 类型
+				const newChat: ChatInfo = {
+					id: response.id,
+					name: response.name,
+					type: 'GROUP',
+					participants: response.participants || [],
+					unreadCount: 0,
+					lastMessage: response.lastMessage,
+				}
+
+				// 添加到 store
+				this.chats.set(newChat.id, newChat)
+				return newChat
+			} catch (error) {
+				console.error('创建群聊失败:', error)
+				throw error
+			}
+		},
+
+		setSelectedChat(chat: ChatInfo | null) {
+			this.selectedChat = chat
 		},
 	},
 })

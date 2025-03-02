@@ -1,7 +1,7 @@
 <template>
 	<div
-		class="whitespace-pre-wrap px-4 break-words text-sm rounded-2xl py-2"
-		:class="[isSender ? 'bg-blue-500 text-white' : 'bg-white text-gray-900 shadow-sm']"
+		class="whitespace-pre-wrap px-4 break-words text-sm rounded-2xl py-2 text-[#020004]"
+		:class="[isSender ? 'bg-[#f3edd6]' : 'bg-[#ead9f3]  shadow-sm']"
 	>
 		{{ message.content }}
 	</div>
