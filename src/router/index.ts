@@ -162,6 +162,15 @@ const routes: RouteRecordRaw[] = [
 		},
 	},
 	{
+		path: '/projects',
+		name: 'projects',
+		component: () => import('@/views/Project/ProjectList.vue'),
+		meta: {
+			requiresAuth: true,
+			layout: 'main',
+		},
+	},
+	{
 		path: '/:pathMatch(.*)*',
 		redirect: '/',
 	},
